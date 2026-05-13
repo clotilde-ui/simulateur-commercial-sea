@@ -145,7 +145,7 @@ function KCard({ label, sub, value, fmt, accent, highlight }) {
       border: `1px solid ${highlight ? accent + "55" : "rgba(255,255,255,0.06)"}`,
     }}>
       <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 7 }}>{label}</div>
-      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: highlight ? 30 : 21, letterSpacing: "-0.03em", lineHeight: 1, color: highlight ? accent : "#F6F1E8" }}>
+      <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: highlight ? 30 : 21, letterSpacing: "-0.03em", lineHeight: 1, color: highlight ? accent : "#F6F1E8" }}>
         <Num value={value} fmt={fmt} />
       </div>
       {sub && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.27)", marginTop: 5 }}>{sub}</div>}
@@ -326,7 +326,7 @@ export default function Simulator() {
     if (document.getElementById("sim-gf")) return;
     const el = document.createElement("link");
     el.id = "sim-gf"; el.rel = "stylesheet";
-    el.href = "https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap";
+    el.href = "https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap";
     document.head.appendChild(el);
   }, []);
 
@@ -365,7 +365,7 @@ export default function Simulator() {
             <input type="file" ref={logoRef} accept="image/*" onChange={handleLogo} style={{ display: "none" }} />
             <div>
               <input value={prospect} onChange={e => setProspect(e.target.value)} placeholder="Nom du prospect…"
-                style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8", width: 200 }} />
+                style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8", width: 200 }} />
               <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", marginTop: 1 }}>
                 {CFG.sectors[sector]} · {ch.label}
               </div>
@@ -432,12 +432,12 @@ export default function Simulator() {
             )}
             <div>
               {prospect ? (
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#F6F1E8" }}>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#F6F1E8" }}>
                   Simulation personnalisée pour{" "}
                   <span style={{ color: accent }}>{prospect}</span>
                 </div>
               ) : (
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: "-0.02em", color: "rgba(255,255,255,0.2)" }}>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: "-0.02em", color: "rgba(255,255,255,0.2)" }}>
                   Configurez votre simulation
                 </div>
               )}
@@ -482,7 +482,7 @@ export default function Simulator() {
                   <>
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.32)", marginBottom: 5 }}>Budget mensuel (€)</div>
                     <input type="number" value={budget} onChange={e => setBudget(Math.min(50000, Math.max(1, Number(e.target.value))))}
-                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 34, color: "#fff", letterSpacing: "-0.03em", width: "100%" }} />
+                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: "#fff", letterSpacing: "-0.03em", width: "100%" }} />
                     <input type="range" min={100} max={50000} step={100} value={budget}
                       onChange={e => setBudget(Number(e.target.value))}
                       style={{ width: "100%", marginTop: 10, accentColor: accent }} />
@@ -491,7 +491,7 @@ export default function Simulator() {
                   <>
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.32)", marginBottom: 5 }}>Objectif leads / mois</div>
                     <input type="number" value={tLeads} onChange={e => setTLeads(Math.min(500, Math.max(1, Number(e.target.value))))}
-                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 34, color: "#fff", letterSpacing: "-0.03em", width: "100%" }} />
+                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: "#fff", letterSpacing: "-0.03em", width: "100%" }} />
                     <input type="range" min={1} max={500} step={1} value={tLeads}
                       onChange={e => setTLeads(Number(e.target.value))}
                       style={{ width: "100%", marginTop: 10, accentColor: accent }} />
@@ -560,7 +560,7 @@ export default function Simulator() {
                   <Funnel stages={stages} color={accent} />
                 </div>
                 <div style={{ padding: "22px 22px" }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, marginBottom: 18, color: "#F6F1E8" }}>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, marginBottom: 18, color: "#F6F1E8" }}>
                     Entonnoir de conversion
                   </div>
                   {stages.map((s, i) => {
@@ -578,7 +578,7 @@ export default function Simulator() {
                               </span>
                             )}
                           </div>
-                          <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8" }}>
+                          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8" }}>
                             {Math.round(s.value).toLocaleString("fr-FR")}
                           </span>
                         </div>
@@ -591,7 +591,7 @@ export default function Simulator() {
 
                   {/* Summary strip */}
                   {prospect && (
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: "0.04em", color: "rgba(255,255,255,0.35)", marginTop: 20, marginBottom: -8 }}>
+                    <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: "0.04em", color: "rgba(255,255,255,0.35)", marginTop: 20, marginBottom: -8 }}>
                       Récapitulatif pour <span style={{ color: accent }}>{prospect}</span>
                     </div>
                   )}
@@ -603,7 +603,7 @@ export default function Simulator() {
                     ].map((s, i) => (
                       <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
                         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.27)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{s.l}</div>
-                        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: accent }}>{s.v}</div>
+                        <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: accent }}>{s.v}</div>
                       </div>
                     ))}
                   </div>
