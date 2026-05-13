@@ -74,7 +74,7 @@ function Num({ value, fmt }) {
   if (fmt === "eur")  return <>{Math.round(v).toLocaleString("fr-FR")} €</>;
   if (fmt === "pct")  return <>{v.toFixed(2)} %</>;
   if (fmt === "pctS") return <>{v.toFixed(1)} %</>;
-  if (fmt === "coef") return <>{v.toFixed(2)}x</>;
+  if (fmt === "coef") return <>x{v.toFixed(2)}</>;
   return <>{Math.round(v).toLocaleString("fr-FR")}</>;
 }
 
