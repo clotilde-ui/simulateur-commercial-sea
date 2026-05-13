@@ -79,10 +79,10 @@ function Num({ value, fmt }) {
 
 // ─── SVG Funnel ──────────────────────────────────────────────
 function Funnel({ stages, color }) {
-  const W = 240, rowH = 66, H = rowH * stages.length + 4;
+  const W = 280, rowH = 72, H = rowH * stages.length + 4;
   const max = Math.max(stages[0]?.value || 1, 1);
-  const MIN = 52;
-  const widths = stages.map(s => MIN + (W - MIN) * Math.sqrt(Math.max(s.value, 0) / max));
+  const MIN = 40;
+  const widths = stages.map(s => MIN + (W - MIN) * (Math.max(s.value, 0) / max));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }}>
       {stages.map((s, i) => {
@@ -582,7 +582,7 @@ export default function Simulator() {
               </div>
 
               {/* Funnel + bar visualization */}
-              <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
                 <div style={{ padding: "22px 14px 22px 22px", borderRight: "1px solid rgba(255,255,255,0.05)" }}>
                   <Funnel stages={stages} color={accent} />
                 </div>
