@@ -74,6 +74,7 @@ function Num({ value, fmt }) {
   if (fmt === "eur")  return <>{Math.round(v).toLocaleString("fr-FR")} €</>;
   if (fmt === "pct")  return <>{v.toFixed(2)} %</>;
   if (fmt === "pctS") return <>{v.toFixed(1)} %</>;
+  if (fmt === "coef") return <>{v.toFixed(2)}x</>;
   return <>{Math.round(v).toLocaleString("fr-FR")}</>;
 }
 
@@ -241,7 +242,7 @@ export default function Simulator() {
   const clients     = Math.round(leads * closing / 100);
   const caPotentiel = clients * panierMoyen;
   const spend = mode === "budget" ? budget : budgetOut;
-  const roi = spend > 0 ? ((caPotentiel - spend) / spend) * 100 : 0;
+  const roi = spend > 0 ? caPotentiel / spend : 0;
 
   const stages = isDirectLeadChannel
     ? [
@@ -582,8 +583,8 @@ export default function Simulator() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                 <KCard label="CA potentiel" value={caPotentiel} fmt="eur"
                   sub={`${clients.toLocaleString("fr-FR")} clients × ${panierMoyen.toLocaleString("fr-FR")} €`} accent={accent} highlight />
-                <KCard label="ROI net" value={roi} fmt="pct"
-                  sub={roi >= 0 ? "retour sur investissement" : "investissement non rentable"} accent={accent} highlight />
+                <KCard label="ROI" value={roi} fmt="coef"
+                  sub={roi >= 1 ? "retour sur investissement" : "investissement non rentable"} accent={accent} highlight />
               </div>
 
               {/* 6 KPI cards */}
