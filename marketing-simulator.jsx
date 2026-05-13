@@ -128,6 +128,12 @@ function Slider({ label, value, min, max, step, onChange, accent, display, label
         <div style={{ position: "absolute", width: "100%", height: 3, background: trackBg ?? "rgba(255,255,255,0.08)", borderRadius: 2 }}>
           <div style={{ width: `${pct}%`, height: "100%", background: accent, borderRadius: 2 }} />
         </div>
+        <div style={{
+          position: "absolute", left: `${pct}%`, transform: "translateX(-50%)",
+          width: 13, height: 13, borderRadius: "50%", background: accent,
+          border: "2px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+          pointerEvents: "none", transition: "left 0.05s",
+        }} />
         <input type="range" min={min} max={max} step={step} value={value}
           onChange={e => onChange(Number(e.target.value))}
           style={{ position: "absolute", width: "100%", opacity: 0, cursor: "pointer", height: "100%", margin: 0 }} />
