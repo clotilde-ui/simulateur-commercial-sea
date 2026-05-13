@@ -116,16 +116,16 @@ function Funnel({ stages, color }) {
 }
 
 // ─── Range slider with colored track ─────────────────────────
-function Slider({ label, value, min, max, step, onChange, accent, display }) {
+function Slider({ label, value, min, max, step, onChange, accent, display, labelColor, trackBg }) {
   const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>{label}</span>
+        <span style={{ fontSize: 11, color: labelColor ?? "rgba(255,255,255,0.38)" }}>{label}</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: accent }}>{display}</span>
       </div>
       <div style={{ position: "relative", height: 16, display: "flex", alignItems: "center" }}>
-        <div style={{ position: "absolute", width: "100%", height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
+        <div style={{ position: "absolute", width: "100%", height: 3, background: trackBg ?? "rgba(255,255,255,0.08)", borderRadius: 2 }}>
           <div style={{ width: `${pct}%`, height: "100%", background: accent, borderRadius: 2 }} />
         </div>
         <input type="range" min={min} max={max} step={step} value={value}
@@ -448,50 +448,59 @@ export default function Simulator() {
           <div style={{ display: "grid", gridTemplateColumns: "310px 1fr", gap: 0, alignItems: "stretch", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
 
             {/* LEFT — Controls */}
-            <div style={{ background: "rgba(0,0,0,0.45)", padding: "20px 18px", borderRight: "2px solid rgba(255,255,255,0.1)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>Paramètres</div>
+            <div style={{ background: "#F6F1E8", padding: "20px 18px", borderRight: "2px solid rgba(0,0,0,0.1)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(0,0,0,0.35)", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.1)" }}>Paramètres</div>
 
               {/* Selectors */}
               <div style={{ marginBottom: 18 }}>
-                <div style={S.label}>Canal d'acquisition</div>
+                <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Canal d'acquisition</div>
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 }}>
                   {Object.entries(CFG.channels).map(([k, c]) => (
-                    <button key={k} onClick={() => setChannel(k)} style={S.chBtn(channel === k, c.color)}>{c.label}</button>
+                    <button key={k} onClick={() => setChannel(k)} style={{
+                      ...S.chBtn(channel === k, c.color),
+                      ...(channel !== k ? { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" } : {}),
+                    }}>{c.label}</button>
                   ))}
                 </div>
-                <div style={S.label}>Secteur d'activité</div>
+                <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Secteur d'activité</div>
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {Object.entries(CFG.sectors).map(([k, l]) => (
-                    <button key={k} onClick={() => setSector(k)} style={S.pill(sector === k)}>{l}</button>
+                    <button key={k} onClick={() => setSector(k)} style={{
+                      ...S.pill(sector === k),
+                      ...(sector !== k ? { background: "transparent", border: "1px solid rgba(0,0,0,0.15)", color: "rgba(0,0,0,0.45)" } : { background: "rgba(0,0,0,0.1)", border: "1px solid rgba(0,0,0,0.2)", color: "rgba(0,0,0,0.8)" }),
+                    }}>{l}</button>
                   ))}
                 </div>
               </div>
 
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", marginBottom: 14 }} />
+              <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", marginBottom: 14 }} />
 
               {/* Mode toggle */}
-              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: 4, display: "flex", marginBottom: 14, border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ background: "rgba(0,0,0,0.06)", borderRadius: 9, padding: 4, display: "flex", marginBottom: 14, border: "1px solid rgba(0,0,0,0.1)" }}>
                 {[["budget", "Budget → Leads"], ["leads", "Leads → Budget"]].map(([m, l]) => (
-                  <button key={m} onClick={() => setMode(m)} style={S.modeBtn(mode === m, accent)}>{l}</button>
+                  <button key={m} onClick={() => setMode(m)} style={{
+                    ...S.modeBtn(mode === m, accent),
+                    ...(mode !== m ? { color: "rgba(0,0,0,0.45)" } : {}),
+                  }}>{l}</button>
                 ))}
               </div>
 
               {/* Primary input */}
-              <div style={{ ...S.panel, padding: "18px 18px 14px", marginBottom: 12, background: "rgba(255,255,255,0.04)" }}>
+              <div style={{ background: "rgba(0,0,0,0.04)", borderRadius: 11, padding: "18px 18px 14px", marginBottom: 12, border: "1px solid rgba(0,0,0,0.08)" }}>
                 {mode === "budget" ? (
                   <>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.32)", marginBottom: 5 }}>Budget mensuel (€)</div>
+                    <div style={{ fontSize: 10, color: "rgba(0,0,0,0.4)", marginBottom: 5 }}>Budget mensuel (€)</div>
                     <input type="number" value={budget} onChange={e => setBudget(Math.min(50000, Math.max(1, Number(e.target.value))))}
-                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: "#fff", letterSpacing: "-0.03em", width: "100%" }} />
+                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: "#0F332B", letterSpacing: "-0.03em", width: "100%" }} />
                     <input type="range" min={100} max={50000} step={100} value={budget}
                       onChange={e => setBudget(Number(e.target.value))}
                       style={{ width: "100%", marginTop: 10, accentColor: accent }} />
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.32)", marginBottom: 5 }}>Objectif leads / mois</div>
+                    <div style={{ fontSize: 10, color: "rgba(0,0,0,0.4)", marginBottom: 5 }}>Objectif leads / mois</div>
                     <input type="number" value={tLeads} onChange={e => setTLeads(Math.min(500, Math.max(1, Number(e.target.value))))}
-                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: "#fff", letterSpacing: "-0.03em", width: "100%" }} />
+                      style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: "#0F332B", letterSpacing: "-0.03em", width: "100%" }} />
                     <input type="range" min={1} max={500} step={1} value={tLeads}
                       onChange={e => setTLeads(Number(e.target.value))}
                       style={{ width: "100%", marginTop: 10, accentColor: accent }} />
@@ -500,21 +509,24 @@ export default function Simulator() {
               </div>
 
               {/* Sliders */}
-              <div style={S.panel}>
-                <div style={{ ...S.label, marginBottom: 14 }}>Paramètres du canal</div>
+              <div style={{ background: "rgba(0,0,0,0.04)", borderRadius: 11, padding: 16, border: "1px solid rgba(0,0,0,0.08)" }}>
+                <div style={{ ...S.label, color: "rgba(0,0,0,0.4)", marginBottom: 14 }}>Paramètres du canal</div>
                 {ch.cpcLabel && (
                   <Slider label={ch.cpcLabel} value={cpc} min={ch.cpcStep} max={ch.cpcMax}
-                    step={ch.cpcStep} onChange={setCpc} accent={accent} display={cpcDisplay} />
+                    step={ch.cpcStep} onChange={setCpc} accent={accent} display={cpcDisplay}
+                    labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                 )}
                 {ch.showCtr && (
                   <Slider label={ch.ctrLabel} value={ctr} min={0.1} max={ch.ctrMax}
-                    step={0.1} onChange={setCtr} accent={accent} display={`${ctr.toFixed(1)} %`} />
+                    step={0.1} onChange={setCtr} accent={accent} display={`${ctr.toFixed(1)} %`}
+                    labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                 )}
                 <Slider label="Taux de conversion (%)" value={conv} min={0.1} max={20}
-                  step={0.1} onChange={setConv} accent={accent} display={`${conv.toFixed(1)} %`} />
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  step={0.1} onChange={setConv} accent={accent} display={`${conv.toFixed(1)} %`}
+                  labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(0,0,0,0.08)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>Panier moyen (€)</span>
+                    <span style={{ fontSize: 11, color: "rgba(0,0,0,0.45)" }}>Panier moyen (€)</span>
                     <span style={{ fontSize: 11, fontWeight: 600, color: accent }}>{panierMoyen.toLocaleString("fr-FR")} €</span>
                   </div>
                   <input type="range" min={1} max={10000} step={1} value={panierMoyen}
@@ -522,7 +534,7 @@ export default function Simulator() {
                     style={{ width: "100%", accentColor: accent }} />
                   <input type="number" value={panierMoyen} min={1}
                     onChange={e => setPanierMoyen(Math.max(1, Number(e.target.value)))}
-                    style={{ marginTop: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "4px 8px", color: "#F6F1E8", fontSize: 12, width: "100%", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+                    style={{ marginTop: 6, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "4px 8px", color: "#0F332B", fontSize: 12, width: "100%", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
                 </div>
               </div>
 
