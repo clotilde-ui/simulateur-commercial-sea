@@ -465,11 +465,11 @@ export default function Simulator() {
           </div>
 
           {/* Main 2-col layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "290px 1fr", gap: "0 0", alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "290px 1fr", gap: 0, alignItems: "stretch", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
 
             {/* LEFT — Controls */}
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 14 }}>Paramètres</div>
+            <div style={{ background: "rgba(0,0,0,0.25)", padding: "20px 18px", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>Paramètres</div>
               {/* Mode toggle */}
               <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 9, padding: 4, display: "flex", marginBottom: 14, border: "1px solid rgba(255,255,255,0.07)" }}>
                 {[["budget", "Budget → Leads"], ["leads", "Leads → Budget"]].map(([m, l]) => (
@@ -530,8 +530,8 @@ export default function Simulator() {
             </div>
 
             {/* RIGHT — Results */}
-            <div style={{ borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: 24 }}>
-              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: 14 }}>Résultats</div>
+            <div style={{ background: "rgba(255,255,255,0.02)", padding: "20px 22px" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>Résultats</div>
               {/* Financial KPIs */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                 <KCard label="CA potentiel" value={caPotentiel} fmt="eur"
