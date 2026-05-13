@@ -131,7 +131,7 @@ function Slider({ label, value, min, max, step, onChange, accent, display, label
         <div style={{
           position: "absolute", left: `${pct}%`, transform: "translateX(-50%)",
           width: 13, height: 13, borderRadius: "50%", background: accent,
-          border: "2px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
           pointerEvents: "none", transition: "left 0.05s",
         }} />
         <input type="range" min={min} max={max} step={step} value={value}
