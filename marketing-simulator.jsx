@@ -13,6 +13,11 @@ const CFG = {
       cpcMax: 20,
       cpcStep: 0.1,
       cpcDigits: 1,
+      cpmLabel: "CPM (€)",
+      cpmMax: 60,
+      cpmStep: 0.5,
+      cpmDigits: 1,
+      cpmDefault: 30,
       showCtr: true,
     },
     "meta-ads": {
@@ -25,6 +30,11 @@ const CFG = {
       cpcMax: 15,
       cpcStep: 0.1,
       cpcDigits: 1,
+      cpmLabel: "CPM (€)",
+      cpmMax: 40,
+      cpmStep: 0.5,
+      cpmDigits: 1,
+      cpmDefault: 12,
       showCtr: true,
     },
     "linkedin-ads": {
@@ -37,6 +47,11 @@ const CFG = {
       cpcMax: 25,
       cpcStep: 0.5,
       cpcDigits: 1,
+      cpmLabel: "CPM (€)",
+      cpmMax: 120,
+      cpmStep: 1,
+      cpmDigits: 1,
+      cpmDefault: 60,
       showCtr: true,
     },
     "tiktok-ads": {
@@ -49,6 +64,11 @@ const CFG = {
       cpcMax: 10,
       cpcStep: 0.1,
       cpcDigits: 1,
+      cpmLabel: "CPM (€)",
+      cpmMax: 30,
+      cpmStep: 0.5,
+      cpmDigits: 1,
+      cpmDefault: 8,
       showCtr: true,
     },
 
@@ -179,6 +199,8 @@ export default function Simulator() {
   const [budget, setBudget]   = useState(5000);
   const [tLeads, setTLeads]   = useState(50);
   const [cpc, setCpc]         = useState(8);
+  const [billing, setBilling] = useState("cpc");
+  const [cpm, setCpm]         = useState(30);
   const [ctr, setCtr]         = useState(4);
   const [conv, setConv]       = useState(3.5);
   const [support, setSupport] = useState("landing");
@@ -215,6 +237,7 @@ export default function Simulator() {
   useLayoutEffect(() => {
     const d = getDefaultValues(channel, sector);
     if (d) { setCpc(d.cpc); setCtr(d.ctr); setConv(d.conversionRate); setBudget(d.budget); }
+    setCpm(CFG.channels[channel]?.cpmDefault ?? 10);
   }, [channel, sector]);
 
   // Restore state from shared URL on first load
@@ -230,6 +253,8 @@ export default function Simulator() {
         if (d.budget > 0)  setBudget(d.budget);
         if (d.tLeads > 0)  setTLeads(d.tLeads);
         if (d.cpc   >= 0)  setCpc(d.cpc);
+        if (d.billing === "cpc" || d.billing === "cpm") setBilling(d.billing);
+        if (d.cpm   > 0)   setCpm(d.cpm);
         if (d.ctr   > 0)   setCtr(d.ctr);
         if (d.conv  > 0)   setConv(d.conv);
         if (CONVERSION_SUPPORTS[d.support]) setSupport(d.support);
@@ -249,16 +274,23 @@ export default function Simulator() {
   let impr = 0, clicks = 0, leads = 0, cpl = 0, budgetOut = 0;
   const safeDiv = (a, b) => b > 0 ? a / b : 0;
 
+  const isCpm = billing === "cpm";
   if (mode === "budget") {
-    clicks = Math.round(safeDiv(budget, cpc));
-    impr = Math.round(safeDiv(clicks, ctr / 100));
+    if (isCpm) {
+      // CPM : le budget achète des impressions, les clics en découlent via le CTR.
+      impr = Math.round(safeDiv(budget, cpm) * 1000);
+      clicks = Math.round(impr * ctr / 100);
+    } else {
+      clicks = Math.round(safeDiv(budget, cpc));
+      impr = Math.round(safeDiv(clicks, ctr / 100));
+    }
     leads = Math.round(clicks * conv / 100);
     budgetOut = budget;
   } else {
     leads = tLeads;
     clicks = Math.round(safeDiv(leads, conv / 100));
     impr = Math.round(safeDiv(clicks, ctr / 100));
-    budgetOut = Math.round(clicks * cpc);
+    budgetOut = isCpm ? Math.round(safeDiv(impr, 1000) * cpm) : Math.round(clicks * cpc);
   }
   cpl = leads > 0 ? safeDiv(mode === "budget" ? budget : budgetOut, leads) : 0;
   // En e-commerce la conversion EST une vente : pas d'étape de closing distincte.
@@ -334,7 +366,7 @@ export default function Simulator() {
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, prospect, website }));
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
@@ -376,6 +408,7 @@ export default function Simulator() {
   }, []);
 
   const cpcDisplay = `${cpc.toFixed(ch.cpcDigits ?? 1)} €`;
+  const cpmDisplay = `${cpm.toFixed(ch.cpmDigits ?? 1)} €`;
 
   const S = {
     root: { minHeight: "100vh", background: "#0F332B", fontFamily: "'DM Sans',sans-serif", color: "#F6F1E8", position: "relative" },
@@ -620,11 +653,31 @@ export default function Simulator() {
               {/* Sliders */}
               <div style={{ background: "rgba(0,0,0,0.04)", borderRadius: 11, padding: 16, border: "1px solid rgba(0,0,0,0.08)" }}>
                 <div style={{ ...S.label, color: "rgba(0,0,0,0.4)", marginBottom: 14 }}>Paramètres du canal</div>
-                {ch.cpcLabel && (
-                  <Slider label={ch.cpcLabel} value={cpc} min={ch.cpcStep} max={ch.cpcMax}
-                    step={ch.cpcStep} onChange={setCpc} accent={accent} display={cpcDisplay}
-                    labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
-                )}
+
+                {/* Mode de facturation */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ ...S.label, color: "rgba(0,0,0,0.45)", marginBottom: 7 }}>Mode de facturation</div>
+                  <div style={{ background: "rgba(0,0,0,0.06)", borderRadius: 9, padding: 4, display: "flex", border: "1px solid rgba(0,0,0,0.1)" }}>
+                    {[["cpc", "CPC", "coût par clic"], ["cpm", "CPM", "coût / 1000 impr."]].map(([m, l, t]) => (
+                      <button key={m} onClick={() => setBilling(m)} title={t} style={{
+                        ...S.modeBtn(billing === m, accent),
+                        ...(billing !== m ? { color: "rgba(0,0,0,0.45)" } : {}),
+                      }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {billing === "cpc"
+                  ? (ch.cpcLabel && (
+                    <Slider label={ch.cpcLabel} value={cpc} min={ch.cpcStep} max={ch.cpcMax}
+                      step={ch.cpcStep} onChange={setCpc} accent={accent} display={cpcDisplay}
+                      labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+                  ))
+                  : (
+                    <Slider label={ch.cpmLabel ?? "CPM (€)"} value={cpm} min={ch.cpmStep ?? 0.5} max={ch.cpmMax ?? 60}
+                      step={ch.cpmStep ?? 0.5} onChange={setCpm} accent={accent} display={cpmDisplay}
+                      labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+                  )}
                 {ch.showCtr && (
                   <Slider label={ch.ctrLabel} value={ctr} min={0.1} max={ch.ctrMax}
                     step={0.1} onChange={setCtr} accent={accent} display={`${ctr.toFixed(1)} %`}
