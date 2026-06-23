@@ -184,6 +184,8 @@ export default function Simulator() {
   const [support, setSupport] = useState("landing");
   const [businessType, setBusinessType] = useState("lead");
   const [contactType, setContactType] = useState(BUSINESS_TYPES.lead.defaultContact);
+  const [geoScope, setGeoScope] = useState("france");
+  const [geoZone, setGeoZone]   = useState("");
   const [panierMoyen, setPanierMoyen] = useState(300);
   const [closing, setClosing]         = useState(20);
   const [prospect, setProspect] = useState("");
@@ -233,6 +235,8 @@ export default function Simulator() {
         if (CONVERSION_SUPPORTS[d.support]) setSupport(d.support);
         if (BUSINESS_TYPES[d.businessType]) setBusinessType(d.businessType);
         if (CONTACT_TYPES[d.contactType]) setContactType(d.contactType);
+        if (d.geoScope === "france" || d.geoScope === "localisee") setGeoScope(d.geoScope);
+        if (d.geoZone) setGeoZone(d.geoZone);
         if (d.panierMoyen > 0) setPanierMoyen(d.panierMoyen);
         if (d.closing > 0)     setClosing(d.closing);
         if (d.prospect)    setProspect(d.prospect);
@@ -330,7 +334,7 @@ export default function Simulator() {
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, support, businessType, contactType, panierMoyen, closing, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, prospect, website }));
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
@@ -556,6 +560,28 @@ export default function Simulator() {
                     }}>{c.label}</button>
                   ))}
                 </div>
+              </div>
+
+              {/* Zone géographique */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Zone géographique</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[["france", "Toute la France"], ["localisee", "Localisée"]].map(([k, l]) => (
+                    <button key={k} onClick={() => setGeoScope(k)} style={{
+                      flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer",
+                      fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600,
+                      transition: "all 0.15s",
+                      ...(geoScope === k
+                        ? { background: accent, border: `1px solid ${accent}`, color: "#fff" }
+                        : { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" }),
+                    }}>{l}</button>
+                  ))}
+                </div>
+                {geoScope === "localisee" && (
+                  <input type="text" value={geoZone} onChange={e => setGeoZone(e.target.value)}
+                    placeholder="Ville, département ou région"
+                    style={{ marginTop: 8, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8, padding: "8px 10px", color: "#0F332B", fontSize: 12, width: "100%", boxSizing: "border-box", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+                )}
               </div>
 
               {/* Mode toggle */}
