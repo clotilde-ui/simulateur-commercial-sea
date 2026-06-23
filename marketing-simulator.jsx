@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { SECTORS, getDefaultValues } from "./src/config/defaults";
+import { SECTORS, getDefaultValues, CONVERSION_SUPPORTS, getSupportConversionRate } from "./src/config/defaults";
 
 const CFG = {
   channels: {
@@ -181,6 +181,7 @@ export default function Simulator() {
   const [cpc, setCpc]         = useState(8);
   const [ctr, setCtr]         = useState(4);
   const [conv, setConv]       = useState(3.5);
+  const [support, setSupport] = useState("landing");
   const [panierMoyen, setPanierMoyen] = useState(300);
   const [closing, setClosing]         = useState(20);
   const [prospect, setProspect] = useState("");
@@ -226,6 +227,7 @@ export default function Simulator() {
         if (d.cpc   >= 0)  setCpc(d.cpc);
         if (d.ctr   > 0)   setCtr(d.ctr);
         if (d.conv  > 0)   setConv(d.conv);
+        if (CONVERSION_SUPPORTS[d.support]) setSupport(d.support);
         if (d.panierMoyen > 0) setPanierMoyen(d.panierMoyen);
         if (d.closing > 0)     setClosing(d.closing);
         if (d.prospect)    setProspect(d.prospect);
@@ -329,7 +331,7 @@ export default function Simulator() {
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, panierMoyen, closing, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, support, panierMoyen, closing, prospect, website }));
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
@@ -566,6 +568,21 @@ export default function Simulator() {
                     step={0.1} onChange={setCtr} accent={accent} display={`${ctr.toFixed(1)} %`}
                     labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                 )}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ ...S.label, color: "rgba(0,0,0,0.45)", marginBottom: 7 }}>Support de conversion</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {Object.entries(CONVERSION_SUPPORTS).map(([k, s]) => (
+                      <button key={k} onClick={() => { setSupport(k); setConv(s.conversionRate); }} style={{
+                        flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer",
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600,
+                        transition: "all 0.15s",
+                        ...(support === k
+                          ? { background: accent, border: `1px solid ${accent}`, color: "#fff" }
+                          : { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" }),
+                      }}>{s.label}</button>
+                    ))}
+                  </div>
+                </div>
                 <Slider label="Taux de conversion (%)" value={conv} min={0.1} max={20}
                   step={0.1} onChange={setConv} accent={accent} display={`${conv.toFixed(1)} %`}
                   labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
