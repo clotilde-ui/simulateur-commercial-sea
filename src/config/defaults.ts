@@ -47,6 +47,15 @@ export const CHANNEL_SECTOR_DEFAULTS = {
   },
 };
 
+export const CONVERSION_SUPPORTS = {
+  landing: { label: "Landing Page", conversionRate: 3 },
+  site: { label: "Site internet", conversionRate: 2.5 },
+};
+
+export function getSupportConversionRate(support) {
+  return CONVERSION_SUPPORTS[support]?.conversionRate ?? null;
+}
+
 export function getDefaultValues(channel, sector) {
   return CHANNEL_SECTOR_DEFAULTS[channel]?.[sector] ?? null;
 }
