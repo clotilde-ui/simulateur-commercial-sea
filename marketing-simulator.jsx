@@ -39,6 +39,18 @@ const CFG = {
       cpcDigits: 1,
       showCtr: true,
     },
+    "tiktok-ads": {
+      label: "TikTok Ads",
+      color: "#FF6B3D",
+      funnel: ["Impressions", "Clics", "Leads"],
+      cpcLabel: "CPC (€)",
+      ctrLabel: "CTR (%)",
+      ctrMax: 8,
+      cpcMax: 10,
+      cpcStep: 0.1,
+      cpcDigits: 1,
+      showCtr: true,
+    },
 
   },
   sectors: SECTORS,

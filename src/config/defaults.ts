@@ -36,6 +36,15 @@ export const CHANNEL_SECTOR_DEFAULTS = {
     ecom: { cpc: 9, ctr: 0.5, conversionRate: 1.5, budget: 4500 },
     conseil: { cpc: 11, ctr: 0.6, conversionRate: 2.5, budget: 9000 },
   },
+  "tiktok-ads": {
+    saas: { cpc: 1.5, ctr: 1, conversionRate: 1.5, budget: 3000 },
+    industrie: { cpc: 1, ctr: 0.8, conversionRate: 1, budget: 1500 },
+    finance: { cpc: 2, ctr: 0.8, conversionRate: 1, budget: 3500 },
+    immo: { cpc: 1.2, ctr: 1.2, conversionRate: 1.5, budget: 2500 },
+    rh: { cpc: 1.3, ctr: 1, conversionRate: 1.5, budget: 2000 },
+    ecom: { cpc: 0.5, ctr: 1.8, conversionRate: 2, budget: 1200 },
+    conseil: { cpc: 1.4, ctr: 1, conversionRate: 1.5, budget: 2500 },
+  },
 };
 
 export function getDefaultValues(channel, sector) {
