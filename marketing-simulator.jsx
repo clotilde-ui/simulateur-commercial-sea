@@ -310,7 +310,7 @@ const SEASON_PRESETS = {
 };
 
 // ─── App ─────────────────────────────────────────────────────
-export default function Simulator({ onOpenBackOffice }) {
+export default function Simulator({ onOpenBackOffice, user, onLogout, consultation }) {
   const [channel, setChannel] = useState("google-ads");
   const [sector, setSector]   = useState("saas");
   const [mode, setMode]       = useState("budget");
@@ -663,10 +663,17 @@ export default function Simulator({ onOpenBackOffice }) {
             {Object.entries(CFG.sectors).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
         </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button onClick={handleShare} style={{ ...hOutBtn, border: `1px solid ${copied ? "#4caf50" : G3}`, color: copied ? "#4caf50" : G2 }}>{copied ? "✓ Enregistré !" : "💾 Enregistrer"}</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {!consultation && <button onClick={handleShare} style={{ ...hOutBtn, border: `1px solid ${copied ? "#4caf50" : G3}`, color: copied ? "#4caf50" : G2 }}>{copied ? "✓ Enregistré !" : "💾 Enregistrer"}</button>}
           {onOpenBackOffice && <button onClick={onOpenBackOffice} style={hOutBtn}>⚙️ Back-office</button>}
           <button onClick={handleExportPdf} disabled={exporting} style={{ background: ORANGE, border: "none", borderRadius: 6, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: exporting ? "default" : "pointer", whiteSpace: "nowrap", fontFamily: "'Inter',sans-serif", opacity: exporting ? 0.7 : 1 }}>↓ {exporting ? "Export…" : "Exporter PDF"}</button>
+          {consultation && <span style={{ fontSize: 11, color: "#8a9e98", whiteSpace: "nowrap" }}>Mode consultation</span>}
+          {user && (
+            <button onClick={onLogout} title={user.email} style={{ ...hOutBtn, display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+              {(user.name || user.email || "").split(" ")[0]}
+            </button>
+          )}
         </div>
       </header>
 
