@@ -343,10 +343,21 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [trackingTick, setTrackingTick] = useState(0);
   const [funnelPeriod, setFunnelPeriod] = useState("month");
+  const [myReportsOpen, setMyReportsOpen] = useState(false);
+  const [myReports, setMyReports] = useState(null);
 
   const ch     = CFG.channels[channel];
   const biz    = BUSINESS_TYPES[businessType];
   const accent = ch.color;
+  // Lecteur = lecture seule : pas d'enregistrement. Consultation (prospect) non plus.
+  const canSave = !consultation && user?.role !== "Lecteur";
+  const openMyReports = () => {
+    setMyReportsOpen(true); setMyReports(null);
+    fetch("/api/my-reports", { headers: { "X-Requested-With": "fetch" } })
+      .then(r => (r.ok ? r.json() : { reports: [] }))
+      .then(d => setMyReports(d.reports || []))
+      .catch(() => setMyReports([]));
+  };
 
   const contentRef   = useRef();
   const exportBtnRef = useRef();
@@ -664,10 +675,12 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
           </select>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {!consultation && <button onClick={handleShare} style={{ ...hOutBtn, border: `1px solid ${copied ? "#4caf50" : G3}`, color: copied ? "#4caf50" : G2 }}>{copied ? "✓ Enregistré !" : "💾 Enregistrer"}</button>}
+          {canSave && <button onClick={handleShare} style={{ ...hOutBtn, border: `1px solid ${copied ? "#4caf50" : G3}`, color: copied ? "#4caf50" : G2 }}>{copied ? "✓ Enregistré !" : "💾 Enregistrer"}</button>}
+          {user && <button onClick={openMyReports} style={hOutBtn}>📂 Mes rapports</button>}
           {onOpenBackOffice && <button onClick={onOpenBackOffice} style={hOutBtn}>⚙️ Back-office</button>}
           <button onClick={handleExportPdf} disabled={exporting} style={{ background: ORANGE, border: "none", borderRadius: 6, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: exporting ? "default" : "pointer", whiteSpace: "nowrap", fontFamily: "'Inter',sans-serif", opacity: exporting ? 0.7 : 1 }}>↓ {exporting ? "Export…" : "Exporter PDF"}</button>
           {consultation && <span style={{ fontSize: 11, color: "#8a9e98", whiteSpace: "nowrap" }}>Mode consultation</span>}
+          {user?.role === "Lecteur" && <span style={{ fontSize: 11, color: "#8a9e98", whiteSpace: "nowrap" }}>Lecture seule</span>}
           {user && (
             <button onClick={onLogout} title={user.email} style={{ ...hOutBtn, display: "flex", alignItems: "center", gap: 6 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
@@ -1142,6 +1155,45 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
               </div>
         </div>
       </div>
+
+      {/* Mes rapports — rapports des espaces dont l'utilisateur est membre */}
+      {myReportsOpen && (
+        <div onMouseDown={() => setMyReportsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "60px 20px", overflowY: "auto" }}>
+          <div onMouseDown={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 640, background: G, borderRadius: 14, border: `1px solid ${G3}`, boxShadow: "0 16px 48px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: `1px solid ${G3}` }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: CREAM }}>Mes rapports</div>
+              <button onClick={() => setMyReportsOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: 20, lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: "16px 22px 22px" }}>
+              {myReports === null ? (
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, padding: "20px 0", textAlign: "center" }}>Chargement…</div>
+              ) : myReports.length === 0 ? (
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, padding: "20px 0", textAlign: "center" }}>
+                  Aucun rapport dans vos espaces pour l'instant.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {myReports.map(r => (
+                    <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: G5, border: `1px solid ${G3}`, borderRadius: 10, padding: "12px 16px" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: CREAM, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.prospect}</div>
+                        <div style={{ fontSize: 11, color: "#8a9e98", marginTop: 2 }}>
+                          {r.espace && r.espace !== "—" ? `${r.espace} · ` : ""}{r.vues || 0} vue{r.vues > 1 ? "s" : ""}{r.temps ? ` · ${fmtDuration(r.temps)}` : ""}
+                        </div>
+                      </div>
+                      <button onClick={() => { if (r.state) window.location.href = `${window.location.origin}${window.location.pathname}?s=${r.state}`; }}
+                        disabled={!r.state}
+                        style={{ ...hOutBtn, flexShrink: 0, opacity: r.state ? 1 : 0.4, cursor: r.state ? "pointer" : "default", color: CREAM, borderColor: G3, background: "rgba(255,255,255,0.06)" }}>
+                        Ouvrir
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Panneau de suivi des consultations */}
       {trackingOpen && (() => {

@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
   const user = {
     name: (name || "").trim() || email.split("@")[0],
-    email, role: "Utilisateur", espace: "",
+    email, role: "Éditeur", espace: "",
     passwordHash: hashPassword(String(password)), createdAt: new Date().toISOString(),
   };
   await createUser(user);

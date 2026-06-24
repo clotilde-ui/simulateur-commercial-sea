@@ -5,7 +5,7 @@ import { SECTORS } from "./config/defaults";
 import Login from "./Login.jsx";
 
 const ROLES = ["Propriétaire", "Éditeur", "Lecteur"];
-const USER_ROLES = ["Utilisateur", "Admin"];
+const USER_ROLES = ["Admin", "Éditeur", "Lecteur"];
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const decodeState = (st) => { try { return JSON.parse(atob(st)); } catch { return {}; } };
 
@@ -216,7 +216,7 @@ export default function BackOffice({ onBack }) {
   const createAccount = async () => {
     const email = newUserEmail.trim();
     if (!email || newUserPwd.length < 8) { window.alert("Email requis et mot de passe d'au moins 8 caractères."); return; }
-    const res = await apiFetch("/api/admin?resource=users", { method: "POST", body: JSON.stringify({ name: newUserName.trim(), email, password: newUserPwd, role: "Utilisateur" }) });
+    const res = await apiFetch("/api/admin?resource=users", { method: "POST", body: JSON.stringify({ name: newUserName.trim(), email, password: newUserPwd, role: "Éditeur" }) });
     if (res.ok) { setNewUserName(""); setNewUserEmail(""); setNewUserPwd(""); await loadServer(); }
     else { const b = await res.json().catch(() => ({})); window.alert(b.error || "Échec de la création."); }
   };

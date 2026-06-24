@@ -37,7 +37,7 @@ async function users(req, res) {
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: "Email invalide." });
     if (!password || String(password).length < 8) return res.status(400).json({ error: "Mot de passe d'au moins 8 caractères." });
     if (await getUserRaw(email)) return res.status(409).json({ error: "Un compte existe déjà pour cet email." });
-    await createUser({ name: (name || "").trim() || email.split("@")[0], email, role: role || "Utilisateur", espace: "", passwordHash: hashPassword(String(password)), createdAt: new Date().toISOString() });
+    await createUser({ name: (name || "").trim() || email.split("@")[0], email, role: role || "Éditeur", espace: "", passwordHash: hashPassword(String(password)), createdAt: new Date().toISOString() });
     return res.status(200).json({ ok: true });
   }
   if (req.method === "PATCH") {
