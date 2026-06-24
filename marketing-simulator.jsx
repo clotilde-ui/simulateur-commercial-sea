@@ -666,7 +666,7 @@ export default function Simulator({ onOpenBackOffice }) {
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(0,0,0,0.35)", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.1)" }}>Paramètres</div>
 
               {/* Canal */}
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Canal d'acquisition</div>
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {Object.entries(CFG.channels).map(([k, c]) => (
@@ -674,6 +674,19 @@ export default function Simulator({ onOpenBackOffice }) {
                       ...S.chBtn(channel === k, c.color),
                       ...(channel !== k ? { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" } : {}),
                     }}>{c.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Secteur d'activité */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Secteur d'activité</div>
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                  {Object.entries(CFG.sectors).map(([k, l]) => (
+                    <button key={k} onClick={() => setSector(k)} style={{
+                      ...S.pill(sector === k),
+                      ...(sector !== k ? { background: "transparent", border: "1px solid rgba(0,0,0,0.15)", color: "rgba(0,0,0,0.45)" } : { background: "rgba(0,0,0,0.1)", border: "1px solid rgba(0,0,0,0.2)", color: "rgba(0,0,0,0.8)" }),
+                    }}>{l}</button>
                   ))}
                 </div>
               </div>
