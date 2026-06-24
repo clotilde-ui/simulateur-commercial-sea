@@ -653,7 +653,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
       <header style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "0 20px", minHeight: 80, display: "flex", alignItems: "center", gap: 18, flexShrink: 0, flexWrap: "wrap" }}>
         <div style={{ position: "relative", width: 230, height: 60, flexShrink: 0 }}>
           <div style={{ backgroundImage: "url(/logo-sonate.png)", backgroundRepeat: "no-repeat", backgroundSize: "248px auto", backgroundPosition: "-4px -10px", width: "100%", height: "100%" }} role="img" aria-label="Sonate" />
-          <span style={{ position: "absolute", top: 2, right: 0, fontSize: 8, fontWeight: 800, letterSpacing: "0.14em", color: ORANGE, lineHeight: 1 }}>Accompagnement SEA</span>
+          <span style={{ position: "absolute", top: 2, right: 0, fontSize: 8, fontWeight: 800, letterSpacing: "0.14em", color: ORANGE, lineHeight: 1 }}>Simulateur SEA/SMA</span>
         </div>
         <div style={{ width: 1, height: 40, background: "#e0e0e0", flexShrink: 0 }} />
         <div style={{ display: "flex", gap: 8, flex: 1, minWidth: 260 }}>
