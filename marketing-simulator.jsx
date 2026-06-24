@@ -256,6 +256,33 @@ const SEASON_PRESETS = {
   estival:  [false, false, false, true, true, true, true, true, true, false, false, false],  // Avr-Sep
 };
 
+// ─── Tracking des consultations de liens partagés ────────────
+// Stockage 100 % local (localStorage) : chaque lien généré reçoit un identifiant
+// (param ?t=). À l'ouverture d'un lien, on enregistre une visite (date + durée).
+// Limite assumée : les données restent dans le navigateur courant — un suivi
+// inter‑appareils nécessiterait un backend.
+const TRACK_KEY = "sim-link-tracking";
+function loadTracking() {
+  try { return JSON.parse(localStorage.getItem(TRACK_KEY)) || {}; } catch { return {}; }
+}
+function saveTracking(store) {
+  try { localStorage.setItem(TRACK_KEY, JSON.stringify(store)); } catch (_) {}
+}
+function genLinkId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function fmtDuration(sec) {
+  if (!sec || sec < 1) return "< 1s";
+  if (sec < 60) return `${Math.round(sec)} s`;
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return s ? `${m} min ${s} s` : `${m} min`;
+}
+function fmtDate(iso) {
+  try {
+    return new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+}
+
 // ─── App ─────────────────────────────────────────────────────
 export default function Simulator() {
   const [channel, setChannel] = useState("google-ads");
@@ -287,6 +314,8 @@ export default function Simulator() {
   const [copied, setCopied]   = useState(false);
   const [exportMenu, setExportMenu] = useState(false);
   const [exporting, setExporting]   = useState(false);
+  const [trackingOpen, setTrackingOpen] = useState(false);
+  const [trackingTick, setTrackingTick] = useState(0);
 
   const ch     = CFG.channels[channel];
   const biz    = BUSINESS_TYPES[businessType];
@@ -345,6 +374,47 @@ export default function Simulator() {
         if (d.website)     { setWebsite(d.website); fetchLogoFromWebsite(d.website); }
       }
     } catch (_) {}
+  }, []);
+
+  // Enregistre une visite quand la page est ouverte via un lien partagé (?t=…),
+  // et mesure la durée de consultation (mise à jour périodique + à la fermeture).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linkId = params.get("t");
+    const encoded = params.get("s");
+    if (!linkId || !encoded) return;
+
+    let label = "Lien partagé";
+    try {
+      const d = JSON.parse(atob(encoded));
+      if (d.prospect) label = d.prospect;
+    } catch (_) {}
+
+    const store = loadTracking();
+    const entry = store[linkId] ?? { label, createdAt: new Date().toISOString(), visits: [] };
+    if (!entry.label || entry.label === "Lien partagé") entry.label = label;
+    const visitIndex = entry.visits.length;
+    entry.visits.push({ ts: new Date().toISOString(), duration: 0 });
+    store[linkId] = entry;
+    saveTracking(store);
+
+    const start = Date.now();
+    const update = () => {
+      const s = loadTracking();
+      const v = s[linkId]?.visits?.[visitIndex];
+      if (!v) return;
+      v.duration = Math.round((Date.now() - start) / 1000);
+      saveTracking(s);
+    };
+    const iv = setInterval(update, 5000);
+    const onHide = () => update();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      clearInterval(iv); update();
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
   }, []);
 
   // ── Funnel computation ────────────────────────────────────
@@ -473,7 +543,12 @@ export default function Simulator() {
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
     const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, cycleVente, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, prospect, website }));
-    const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+    const linkId = genLinkId();
+    const url = `${window.location.origin}${window.location.pathname}?s=${encoded}&t=${linkId}`;
+    // Référence le lien dans le suivi local pour pouvoir consulter ses statistiques.
+    const store = loadTracking();
+    if (!store[linkId]) store[linkId] = { label: prospect || "Sans nom", createdAt: new Date().toISOString(), visits: [] };
+    saveTracking(store);
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
     setCopied(true);
@@ -569,6 +644,13 @@ export default function Simulator() {
               color: copied ? "#FF6B3D" : "rgba(255,255,255,0.55)", transition: "all 0.2s"
             }}>
               {copied ? "✓ Lien copié" : "Générer lien"}
+            </button>
+            <button onClick={() => setTrackingOpen(true)} style={{
+              padding: "7px 16px", borderRadius: 7, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)",
+              color: "rgba(255,255,255,0.55)", transition: "all 0.2s"
+            }}>
+              Suivi
             </button>
             <div ref={exportBtnRef} style={{ position: "relative" }}>
               <button
@@ -1081,6 +1163,83 @@ export default function Simulator() {
           </div>
         </div>
       </div>
+
+      {/* Panneau de suivi des consultations */}
+      {trackingOpen && (() => {
+        const store = loadTracking();
+        const entries = Object.entries(store)
+          .map(([id, e]) => ({
+            id, label: e.label, createdAt: e.createdAt,
+            visits: (e.visits || []).slice().sort((a, b) => new Date(b.ts) - new Date(a.ts)),
+          }))
+          .map(e => ({ ...e, count: e.visits.length, total: e.visits.reduce((s, v) => s + (v.duration || 0), 0) }))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        return (
+          <div onMouseDown={() => setTrackingOpen(false)} style={{
+            position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "60px 20px", overflowY: "auto",
+          }}>
+            <div onMouseDown={e => e.stopPropagation()} style={{
+              width: "100%", maxWidth: 600, background: "#0F332B", borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)", overflow: "hidden",
+            }}>
+              {/* En-tête */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 16, color: "#F6F1E8" }}>Suivi des consultations</div>
+                <button onClick={() => setTrackingOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: 20, lineHeight: 1 }}>×</button>
+              </div>
+
+              <div style={{ padding: "16px 22px 22px" }}>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 16, padding: "9px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
+                  Les statistiques sont enregistrées localement dans ce navigateur. Vous voyez les ouvertures de vos liens réalisées sur cet appareil ; un suivi des visites du prospect sur son propre appareil nécessiterait un serveur.
+                </div>
+
+                {entries.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "28px 0", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                    Aucun lien généré pour l'instant.<br />
+                    <span style={{ fontSize: 11 }}>Cliquez sur « Générer lien » pour créer un lien suivi.</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {entries.map(e => (
+                      <div key={e.id} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8" }}>{e.label || "Sans nom"}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: accent, background: accent + "1A", padding: "2px 9px", borderRadius: 12 }}>
+                            {e.count} visite{e.count > 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: e.count ? 10 : 0 }}>
+                          Créé le {fmtDate(e.createdAt)}{e.total > 0 ? ` · ${fmtDuration(e.total)} cumulées` : ""}
+                        </div>
+                        {e.count > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                            {e.visits.map((v, i) => (
+                              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, padding: "6px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                                <span style={{ color: "rgba(255,255,255,0.55)" }}>{fmtDate(v.ts)}</span>
+                                <span style={{ color: accent, fontWeight: 600 }}>{fmtDuration(v.duration)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {entries.length > 0 && (
+                  <button onClick={() => { saveTracking({}); setTrackingTick(t => t + 1); }} style={{
+                    marginTop: 16, width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
+                    background: "transparent", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.45)", fontSize: 11.5,
+                  }}>
+                    Vider le suivi
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
