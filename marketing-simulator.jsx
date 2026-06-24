@@ -246,6 +246,16 @@ const LEARNING_STEPS = [
   { label: "M6", mult: 0.5, delta: null },
 ];
 
+// ─── Saisonnalité (logique portée du simulateur SEO) ─────────
+// Les mois cochés en "haute saison" voient leurs résultats pondérés par un
+// coefficient ; les autres restent à ×1. `startMonth` décale le calendrier.
+const MONTH_NAMES = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+const SEASON_PRESETS = {
+  uniforme: Array(12).fill(false),
+  hivernal: [true, true, true, true, false, false, false, false, false, false, false, true], // Oct-Avr
+  estival:  [false, false, false, true, true, true, true, true, true, false, false, false],  // Avr-Sep
+};
+
 // ─── App ─────────────────────────────────────────────────────
 export default function Simulator() {
   const [channel, setChannel] = useState("google-ads");
@@ -266,6 +276,10 @@ export default function Simulator() {
   const [panierMoyen, setPanierMoyen] = useState(300);
   const [closing, setClosing]         = useState(20);
   const [cycleVente, setCycleVente]   = useState(1);
+  const [seasonalityEnabled, setSeasonalityEnabled] = useState(false);
+  const [startMonth, setStartMonth]   = useState(0);
+  const [highSeasonMonths, setHighSeasonMonths] = useState(Array(12).fill(false));
+  const [highSeasonMultiplier, setHighSeasonMultiplier] = useState(3);
   const [prospect, setProspect] = useState("");
   const [logo, setLogo]       = useState(null);
   const [website, setWebsite] = useState("");
@@ -321,6 +335,11 @@ export default function Simulator() {
         if (d.panierMoyen > 0) setPanierMoyen(d.panierMoyen);
         if (d.closing > 0)     setClosing(d.closing);
         if (d.cycleVente >= 1 && d.cycleVente <= 12) setCycleVente(d.cycleVente);
+        if (typeof d.seasonalityEnabled === "boolean") setSeasonalityEnabled(d.seasonalityEnabled);
+        if (d.startMonth >= 0 && d.startMonth <= 11) setStartMonth(d.startMonth);
+        if (Array.isArray(d.highSeasonMonths) && d.highSeasonMonths.length === 12)
+          setHighSeasonMonths(d.highSeasonMonths.map(Boolean));
+        if (d.highSeasonMultiplier >= 1) setHighSeasonMultiplier(d.highSeasonMultiplier);
         if (d.prospect)    setProspect(d.prospect);
         if (d.website)     { setWebsite(d.website); fetchLogoFromWebsite(d.website); }
       }
@@ -364,6 +383,26 @@ export default function Simulator() {
     { label: "Mois 3",     deltaLabel: "−10% suppl.",                            cpl: cpl * 0.8 },
     { label: "Mois 4 et +", deltaLabel: "−30% suppl.", tag: "maturité",          cpl: cpl * 0.5 },
   ];
+
+  // Saisonnalité : projection sur 12 mois, chaque mois pondéré par son coefficient.
+  const seasonalMonths = Array.from({ length: 12 }, (_, i) => {
+    const calMonth = (startMonth + i) % 12;
+    const high = seasonalityEnabled && highSeasonMonths[calMonth];
+    const coef = high ? highSeasonMultiplier : 1;
+    return {
+      label: seasonalityEnabled ? MONTH_NAMES[calMonth] : `M${i + 1}`,
+      high, coef,
+      leads: leads * coef,
+      clients: clients * coef,
+      ca: caPotentiel * coef,
+    };
+  });
+  const annualLeads   = seasonalMonths.reduce((s, m) => s + m.leads, 0);
+  const annualClients = seasonalMonths.reduce((s, m) => s + m.clients, 0);
+  const annualCA      = seasonalMonths.reduce((s, m) => s + m.ca, 0);
+  const annualSpend   = spend * 12;
+  const annualRoi     = annualSpend > 0 ? annualCA / annualSpend : 0;
+  const maxMonthLeads = Math.max(...seasonalMonths.map(m => m.leads), 1);
 
   const stages = [
     { label: ch.funnel[0], value: impr },
@@ -432,7 +471,7 @@ export default function Simulator() {
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, cycleVente, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, cycleVente, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, prospect, website }));
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
@@ -799,6 +838,61 @@ export default function Simulator() {
                 </div>
               </div>
 
+              {/* Saisonnalité */}
+              <div style={{ marginTop: 14, background: "rgba(0,0,0,0.04)", borderRadius: 11, padding: 16, border: "1px solid rgba(0,0,0,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: seasonalityEnabled ? 14 : 0 }}>
+                  <span style={{ ...S.label, color: "rgba(0,0,0,0.4)", marginBottom: 0 }}>Saisonnalité</span>
+                  <button onClick={() => setSeasonalityEnabled(v => !v)} title={seasonalityEnabled ? "Désactiver" : "Activer"}
+                    style={{ width: 38, height: 20, borderRadius: 11, border: "none", cursor: "pointer", flexShrink: 0,
+                      background: seasonalityEnabled ? accent : "rgba(0,0,0,0.18)", position: "relative", transition: "background .2s" }}>
+                    <span style={{ position: "absolute", top: 3, left: seasonalityEnabled ? 21 : 3, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left .2s", display: "block" }} />
+                  </button>
+                </div>
+
+                {seasonalityEnabled && (
+                  <>
+                    {/* Préréglages */}
+                    <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                      {Object.keys(SEASON_PRESETS).map(p => {
+                        const active = JSON.stringify(highSeasonMonths) === JSON.stringify(SEASON_PRESETS[p]);
+                        return (
+                          <button key={p} onClick={() => setHighSeasonMonths([...SEASON_PRESETS[p]])} style={{
+                            flex: 1, padding: "5px 6px", borderRadius: 6, fontSize: 11, textTransform: "capitalize",
+                            fontWeight: active ? 700 : 500, cursor: "pointer",
+                            ...(active ? { background: accent, border: `1px solid ${accent}`, color: "#fff" }
+                                       : { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" }),
+                          }}>{p}</button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mois de haute saison */}
+                    <div style={{ fontSize: 10, color: "rgba(0,0,0,0.45)", marginBottom: 6 }}>Cliquer les mois de haute saison</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 4, marginBottom: 14 }}>
+                      {MONTH_NAMES.map((m, i) => (
+                        <button key={i} onClick={() => { const next = [...highSeasonMonths]; next[i] = !next[i]; setHighSeasonMonths(next); }} style={{
+                          padding: "5px 2px", borderRadius: 4, fontSize: 10, fontWeight: highSeasonMonths[i] ? 700 : 400, cursor: "pointer", transition: "all .15s",
+                          ...(highSeasonMonths[i] ? { background: accent, border: `1px solid ${accent}`, color: "#fff" }
+                                                  : { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" }),
+                        }}>{m}</button>
+                      ))}
+                    </div>
+
+                    {/* Coefficient haute saison */}
+                    <Slider label="Coefficient haute saison" value={highSeasonMultiplier} min={1.5} max={6}
+                      step={0.5} onChange={setHighSeasonMultiplier} accent={accent} display={`×${highSeasonMultiplier.toFixed(1)}`}
+                      labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+
+                    {/* Mois de démarrage */}
+                    <div style={{ fontSize: 10, color: "rgba(0,0,0,0.45)", marginBottom: 6 }}>Mois de démarrage de la campagne</div>
+                    <select value={startMonth} onChange={e => setStartMonth(Number(e.target.value))}
+                      style={{ width: "100%", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8, padding: "7px 8px", color: "#0F332B", fontSize: 12, outline: "none", fontFamily: "'DM Sans',sans-serif" }}>
+                      {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                    </select>
+                  </>
+                )}
+              </div>
+
             </div>
 
             {/* RIGHT — Results */}
@@ -929,6 +1023,58 @@ export default function Simulator() {
                     Les 3 premiers mois correspondent à la phase d'apprentissage de l'algorithme.
                   </span>
                 </div>
+              </div>
+
+              {/* Projection sur 12 mois — pondérée par la saisonnalité */}
+              <div style={{ marginTop: 14, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "20px 22px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: "#F6F1E8" }}>
+                    Projection sur 12 mois
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
+                    {seasonalityEnabled
+                      ? `${biz.conversionStage} pondérés (×${highSeasonMultiplier.toFixed(1)} en haute saison)`
+                      : `Activez la saisonnalité pour pondérer les mois`}
+                  </div>
+                </div>
+
+                {/* Barres mensuelles */}
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 130, marginTop: 16 }}>
+                  {seasonalMonths.map((m, i) => {
+                    const h = Math.max((m.leads / maxMonthLeads) * 100, 2);
+                    return (
+                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                        {m.high && (
+                          <div style={{ fontSize: 8, fontWeight: 700, color: accent, marginBottom: 3 }}>{Math.round(m.leads).toLocaleString("fr-FR")}</div>
+                        )}
+                        <div style={{ width: "100%", height: `${h}%`, minHeight: 2, borderRadius: "3px 3px 0 0",
+                          background: m.high ? accent : accent + "55", transition: "height .4s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                        <div style={{ fontSize: 8.5, color: m.high ? accent : "rgba(255,255,255,0.4)", fontWeight: m.high ? 700 : 400, marginTop: 5 }}>{m.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Récap annuel */}
+                <div style={{ display: "flex", marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  {[
+                    { l: `${biz.conversionStage} / an`, v: Math.round(annualLeads).toLocaleString("fr-FR") },
+                    ...(biz.hasClosing ? [{ l: `${biz.finalStage} / an`, v: Math.round(annualClients).toLocaleString("fr-FR") }] : []),
+                    { l: "CA cumulé 12 mois", v: `${Math.round(annualCA).toLocaleString("fr-FR")} €` },
+                    { l: "ROI 12 mois", v: `x${annualRoi.toFixed(2)}` },
+                  ].map((s, i, arr) => (
+                    <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.27)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>{s.l}</div>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: accent }}>{s.v}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {seasonalityEnabled && (
+                  <div style={{ marginTop: 14, padding: "10px 12px", background: accent + "14", borderRadius: 8, border: `1px solid ${accent}33`, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                    Démarrage en {MONTH_NAMES[startMonth]}. Les mois de haute saison sont pondérés ×{highSeasonMultiplier.toFixed(1)} ; les autres restent à leur volume de base.
+                  </div>
+                )}
               </div>
             </div>
           </div>
