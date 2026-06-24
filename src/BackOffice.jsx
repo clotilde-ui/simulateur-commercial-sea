@@ -123,8 +123,29 @@ export default function BackOffice({ onBack }) {
   const invites = loadInvites();
   const activeEmails = new Set(usersFull.map(u => u.email));
   const inviteStatus = (inv) =>
-    activeEmails.has(inv.email) ? "activated"
+    (inv.activatedAt || activeEmails.has(inv.email)) ? "activated"
     : (new Date(inv.expiresAt).getTime() < Date.now() ? "expired" : "pending");
+
+  const [refreshingInvites, setRefreshingInvites] = useState(false);
+  const refreshInviteStatuses = async () => {
+    const list = loadInvites();
+    const pending = list.filter(i => i.token && !i.activatedAt);
+    if (!pending.length) { setInviteMsg({ ok: null, text: "Aucune invitation en attente à vérifier." }); return; }
+    setRefreshingInvites(true);
+    try {
+      await Promise.all(pending.map(async (i) => {
+        try {
+          const r = await fetch(`/api/invite-status?token=${encodeURIComponent(i.token)}`);
+          const d = await r.json().catch(() => ({}));
+          if (r.ok && d.status === "activated") i.activatedAt = d.activatedAt || new Date().toISOString();
+        } catch (_) { /* ignore */ }
+      }));
+      saveInvites(list);
+      refresh();
+    } finally {
+      setRefreshingInvites(false);
+    }
+  };
   const spacesOfUser = (email) => spaces.filter(s => (s.members || []).some(m => m.email === email));
 
   const sendInvite = async () => {
@@ -596,7 +617,13 @@ export default function BackOffice({ onBack }) {
             </div>
 
             {/* Invitations */}
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>Invitations</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>Invitations</div>
+              <button onClick={refreshInviteStatuses} disabled={refreshingInvites} style={{
+                padding: "5px 12px", borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: refreshingInvites ? "default" : "pointer",
+                background: "transparent", border: `1px solid ${BORDER}`, color: MUTED, fontFamily: "'DM Sans',sans-serif",
+              }}>{refreshingInvites ? "Vérification…" : "↻ Rafraîchir les statuts"}</button>
+            </div>
             {invites.length === 0 ? (
               <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginBottom: 30 }}>Aucune invitation.</div>
             ) : (

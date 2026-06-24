@@ -7,6 +7,8 @@
 //   BREVO_SENDER_EMAIL – email expéditeur (doit être un expéditeur vérifié dans Brevo)
 //   BREVO_SENDER_NAME  – nom expéditeur (optionnel, défaut « Sonate »)
 
+import { kvSet, kvConfigured } from "./_kv.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée." });
@@ -19,9 +21,20 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Brevo non configuré (BREVO_API_KEY / BREVO_SENDER_EMAIL manquants côté serveur)." });
   }
 
-  const { email, espace, role, link, expiresAt } = req.body || {};
+  const { email, espace, role, link, expiresAt, token } = req.body || {};
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return res.status(400).json({ error: "Adresse email invalide." });
+  }
+
+  // Persiste l'invitation côté serveur (clé = token) pour permettre l'activation.
+  if (token && kvConfigured()) {
+    try {
+      const ttl = 60 * 60 * 24 * 30; // 30 jours
+      await kvSet(`invite:${token}`, {
+        email, espace: espace || "", role: role || "Lecteur",
+        sentAt: new Date().toISOString(), expiresAt: expiresAt || null, activatedAt: null,
+      }, ttl);
+    } catch (_) { /* l'email part quand même ; l'activation sera indisponible sans KV */ }
   }
 
   const espaceTxt = espace ? ` à l'espace « ${espace} »` : "";
