@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { SECTORS, getDefaultValues, getSectorSalesCycle, CONVERSION_SUPPORTS, getSupportConversionRate, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
+import { loadTracking, saveTracking, genLinkId, fmtDuration, fmtDate } from "./src/tracking";
 
 const CFG = {
   channels: {
@@ -256,35 +257,8 @@ const SEASON_PRESETS = {
   estival:  [false, false, false, true, true, true, true, true, true, false, false, false],  // Avr-Sep
 };
 
-// ─── Tracking des consultations de liens partagés ────────────
-// Stockage 100 % local (localStorage) : chaque lien généré reçoit un identifiant
-// (param ?t=). À l'ouverture d'un lien, on enregistre une visite (date + durée).
-// Limite assumée : les données restent dans le navigateur courant — un suivi
-// inter‑appareils nécessiterait un backend.
-const TRACK_KEY = "sim-link-tracking";
-function loadTracking() {
-  try { return JSON.parse(localStorage.getItem(TRACK_KEY)) || {}; } catch { return {}; }
-}
-function saveTracking(store) {
-  try { localStorage.setItem(TRACK_KEY, JSON.stringify(store)); } catch (_) {}
-}
-function genLinkId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-function fmtDuration(sec) {
-  if (!sec || sec < 1) return "< 1s";
-  if (sec < 60) return `${Math.round(sec)} s`;
-  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
-  return s ? `${m} min ${s} s` : `${m} min`;
-}
-function fmtDate(iso) {
-  try {
-    return new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
-  } catch { return iso; }
-}
-
 // ─── App ─────────────────────────────────────────────────────
-export default function Simulator() {
+export default function Simulator({ onOpenBackOffice }) {
   const [channel, setChannel] = useState("google-ads");
   const [sector, setSector]   = useState("saas");
   const [mode, setMode]       = useState("budget");
@@ -547,7 +521,14 @@ export default function Simulator() {
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}&t=${linkId}`;
     // Référence le lien dans le suivi local pour pouvoir consulter ses statistiques.
     const store = loadTracking();
-    if (!store[linkId]) store[linkId] = { label: prospect || "Sans nom", createdAt: new Date().toISOString(), visits: [] };
+    if (!store[linkId]) store[linkId] = {
+      label: prospect || "Sans nom",
+      website: website || "",
+      espace: "Sonate",
+      createdAt: new Date().toISOString(),
+      state: encoded,
+      visits: [],
+    };
     saveTracking(store);
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
@@ -652,6 +633,15 @@ export default function Simulator() {
             }}>
               Suivi
             </button>
+            {onOpenBackOffice && (
+              <button onClick={onOpenBackOffice} style={{
+                padding: "7px 16px", borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                background: "rgba(255,107,61,0.12)", border: "1px solid rgba(255,107,61,0.3)",
+                color: "#FF6B3D", transition: "all 0.2s"
+              }}>
+                Back-office
+              </button>
+            )}
             <div ref={exportBtnRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setExportMenu(m => !m)}
