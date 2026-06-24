@@ -191,6 +191,61 @@ function KCard({ label, sub, value, fmt, accent, highlight }) {
   );
 }
 
+// ─── Learning curve — CPL evolution over the first months ────
+function LearningCurve({ data, color }) {
+  const W = 560, H = 190;
+  const padL = 14, padR = 14, padT = 30, padB = 24;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const maxV = Math.max(...data.map(d => d.cpl), 1);
+  const n = data.length;
+  const px = i => padL + (n <= 1 ? plotW / 2 : (plotW * i) / (n - 1));
+  const py = v => padT + plotH - (v / maxV) * plotH;
+  const linePts = data.map((d, i) => `${px(i)},${py(d.cpl)}`).join(" ");
+  const baseY = padT + plotH;
+  const areaPts = `${px(0)},${baseY} ${linePts} ${px(n - 1)},${baseY}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }}>
+      <defs>
+        <linearGradient id="lc-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPts} fill="url(#lc-grad)" />
+      <polyline points={linePts} fill="none" stroke={color} strokeWidth="2"
+        strokeLinejoin="round" strokeLinecap="round" />
+      {data.map((d, i) => (
+        <g key={i}>
+          <circle cx={px(i)} cy={py(d.cpl)} r="3.5" fill={color} stroke="#0F332B" strokeWidth="1.5" />
+          <text x={px(i)} y={py(d.cpl) - 10} textAnchor="middle" fill="#F6F1E8" fontSize="10" fontWeight="700">
+            {Math.round(d.cpl).toLocaleString("fr-FR")} €
+          </text>
+          {d.delta != null && (
+            <text x={px(i)} y={py(d.cpl) - 22} textAnchor="middle" fill={color} fontSize="8" fontWeight="600">
+              {d.delta < 0 ? "−" : ""}{Math.abs(d.delta)}%
+            </text>
+          )}
+          <text x={px(i)} y={H - 7} textAnchor="middle" fill="rgba(255,255,255,0.42)" fontSize="9.5">
+            {d.label}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// Réduction marginale du CPL mois après mois (apprentissage de l'algorithme) :
+//  M1 = CPL de base, M2 −10%, M3 −10% suppl., M4 et + −30% suppl. (maturité).
+const LEARNING_STEPS = [
+  { label: "M1", mult: 1.0, delta: null },
+  { label: "M2", mult: 0.9, delta: -10 },
+  { label: "M3", mult: 0.8, delta: -10 },
+  { label: "M4", mult: 0.5, delta: -30 },
+  { label: "M5", mult: 0.5, delta: null },
+  { label: "M6", mult: 0.5, delta: null },
+];
+
 // ─── App ─────────────────────────────────────────────────────
 export default function Simulator() {
   const [channel, setChannel] = useState("google-ads");
@@ -300,6 +355,15 @@ export default function Simulator() {
   const caPotentiel = clients * panierMoyen;
   const spend = mode === "budget" ? budget : budgetOut;
   const roi = spend > 0 ? caPotentiel / spend : 0;
+
+  // Courbe d'apprentissage : évolution du CPL/CPA sur les premiers mois.
+  const learningData = LEARNING_STEPS.map(s => ({ ...s, cpl: cpl * s.mult }));
+  const learningTable = [
+    { label: "Mois 1",     deltaLabel: `${biz.cplShort} de base`, isBase: true, cpl: cpl * 1.0 },
+    { label: "Mois 2",     deltaLabel: "−10%",                                   cpl: cpl * 0.9 },
+    { label: "Mois 3",     deltaLabel: "−10% suppl.",                            cpl: cpl * 0.8 },
+    { label: "Mois 4 et +", deltaLabel: "−30% suppl.", tag: "maturité",          cpl: cpl * 0.5 },
+  ];
 
   const stages = [
     { label: ch.funnel[0], value: impr },
@@ -824,6 +888,46 @@ export default function Simulator() {
                       <div style={{ fontSize: 10, color: accent, fontFamily: "monospace", wordBreak: "break-all" }}>{shareUrl}</div>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Courbe d'apprentissage — évolution du CPL sur les premiers mois */}
+              <div style={{ marginTop: 14, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "20px 22px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: "#F6F1E8" }}>
+                    Courbe d'apprentissage
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
+                    Évolution du {biz.cplShort} sur les premiers mois
+                  </div>
+                </div>
+
+                <LearningCurve data={learningData} color={accent} />
+
+                {/* Tableau mois par mois */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: 8, paddingBottom: 6, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                    {["Mois", "Évolution", biz.cplShort].map((h, i) => (
+                      <span key={i} style={{ fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", textAlign: i === 0 ? "left" : i === 1 ? "center" : "right" }}>{h}</span>
+                    ))}
+                  </div>
+                  {learningTable.map((r, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: 8, padding: "7px 0", borderTop: i ? "1px solid rgba(255,255,255,0.05)" : "none", alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
+                        {r.label}{r.tag && <span style={{ color: accent, fontSize: 9, marginLeft: 6 }}>· {r.tag}</span>}
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 600, textAlign: "center", color: r.isBase ? "rgba(255,255,255,0.35)" : accent }}>{r.deltaLabel}</span>
+                      <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12, textAlign: "right", color: "#F6F1E8" }}>{Math.round(r.cpl).toLocaleString("fr-FR")} €</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Note explicative */}
+                <div style={{ marginTop: 14, padding: "10px 12px", background: accent + "14", borderRadius: 8, border: `1px solid ${accent}33`, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span style={{ color: accent, fontSize: 12, lineHeight: 1.4 }}>ⓘ</span>
+                  <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                    Les 3 premiers mois correspondent à la phase d'apprentissage de l'algorithme.
+                  </span>
                 </div>
               </div>
             </div>
