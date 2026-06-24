@@ -210,6 +210,7 @@ export default function Simulator() {
   const [geoZone, setGeoZone]   = useState("");
   const [panierMoyen, setPanierMoyen] = useState(300);
   const [closing, setClosing]         = useState(20);
+  const [cycleVente, setCycleVente]   = useState(1);
   const [prospect, setProspect] = useState("");
   const [logo, setLogo]       = useState(null);
   const [website, setWebsite] = useState("");
@@ -264,6 +265,7 @@ export default function Simulator() {
         if (d.geoZone) setGeoZone(d.geoZone);
         if (d.panierMoyen > 0) setPanierMoyen(d.panierMoyen);
         if (d.closing > 0)     setClosing(d.closing);
+        if (d.cycleVente >= 1 && d.cycleVente <= 12) setCycleVente(d.cycleVente);
         if (d.prospect)    setProspect(d.prospect);
         if (d.website)     { setWebsite(d.website); fetchLogoFromWebsite(d.website); }
       }
@@ -366,7 +368,7 @@ export default function Simulator() {
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, cycleVente, prospect, website }));
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
     setShareUrl(url);
     try { await navigator.clipboard.writeText(url); } catch (_) {}
@@ -616,6 +618,19 @@ export default function Simulator() {
                     style={{ marginTop: 8, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8, padding: "8px 10px", color: "#0F332B", fontSize: 12, width: "100%", boxSizing: "border-box", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
                 )}
               </div>
+
+              {/* Durée du cycle de vente — sans objet pour l'e-commerce (achat immédiat) */}
+              {businessType !== "ecommerce" && (
+                <div style={{ marginBottom: 16 }}>
+                  <Slider label="Durée du cycle de vente" value={cycleVente} min={1} max={12}
+                    step={1} onChange={setCycleVente} accent={accent}
+                    display={`${cycleVente} mois`}
+                    labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+                  <div style={{ fontSize: 10, color: "rgba(0,0,0,0.35)", marginTop: -4 }}>
+                    Contextualise les projections dans le temps
+                  </div>
+                </div>
+              )}
 
               {/* Mode toggle */}
               <div style={{ background: "rgba(0,0,0,0.06)", borderRadius: 9, padding: 4, display: "flex", marginBottom: 14, border: "1px solid rgba(0,0,0,0.1)" }}>
