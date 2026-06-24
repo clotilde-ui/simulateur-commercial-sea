@@ -63,8 +63,8 @@ export default function BackOffice({ onBack }) {
   const loadServer = async () => {
     try {
       const [ru, ri, rs, rr] = await Promise.all([
-        apiFetch("/api/admin/users"), apiFetch("/api/admin/invites"),
-        apiFetch("/api/admin/spaces"), apiFetch("/api/admin/reports"),
+        apiFetch("/api/admin?resource=users"), apiFetch("/api/admin?resource=invites"),
+        apiFetch("/api/admin?resource=spaces"), apiFetch("/api/admin?resource=reports"),
       ]);
       if (ru.ok) setSrvUsers((await ru.json()).users || []);
       if (ri.ok) setSrvInvites((await ri.json()).invites || []);
@@ -89,18 +89,18 @@ export default function BackOffice({ onBack }) {
   const spaces = srvSpaces;
   const users = srvUsers;
   const patchSpace = async (id, body) => {
-    await apiFetch("/api/admin/spaces", { method: "PATCH", body: JSON.stringify({ id, ...body }) });
+    await apiFetch("/api/admin?resource=spaces", { method: "PATCH", body: JSON.stringify({ id, ...body }) });
     await loadServer();
   };
   const createSpace = async () => {
     const name = newSpaceName.trim();
     if (!name) return;
-    const res = await apiFetch("/api/admin/spaces", { method: "POST", body: JSON.stringify({ name }) });
+    const res = await apiFetch("/api/admin?resource=spaces", { method: "POST", body: JSON.stringify({ name }) });
     if (res.ok) { setNewSpaceName(""); await loadServer(); }
   };
   const deleteSpace = async (s) => {
     if (!window.confirm(`Supprimer l'espace « ${s.name} » ?`)) return;
-    await apiFetch(`/api/admin/spaces?id=${encodeURIComponent(s.id)}`, { method: "DELETE" });
+    await apiFetch(`/api/admin?resource=spaces&id=${encodeURIComponent(s.id)}`, { method: "DELETE" });
     await loadServer();
   };
   const manageSpace = (s) => { setManagingSpaceId(s.id); setRenameInput(s.name); setAddMode("existant"); setSelectedUserId(""); setInviteEmail(""); setMemberRole("Lecteur"); };
@@ -110,7 +110,7 @@ export default function BackOffice({ onBack }) {
     if (!name || name === s.name) return;
     // Reporte le renommage sur les rapports rattachés à l'ancien nom d'espace.
     await Promise.all((srvReports || []).filter(r => r.espace === s.name)
-      .map(r => apiFetch("/api/admin/reports", { method: "PATCH", body: JSON.stringify({ id: r.id, espace: name }) })));
+      .map(r => apiFetch("/api/admin?resource=reports", { method: "PATCH", body: JSON.stringify({ id: r.id, espace: name }) })));
     await patchSpace(s.id, { name });
   };
   const addMember = (s) => {
@@ -199,14 +199,14 @@ export default function BackOffice({ onBack }) {
     try {
       const res = await apiFetch("/api/invite", { method: "POST", body: JSON.stringify({ email: inv.email, espace: inv.espace, role: inv.role, link, expiresAt, token }) });
       if (res.ok) {
-        await apiFetch(`/api/admin/invites?token=${encodeURIComponent(inv.token)}`, { method: "DELETE" });
+        await apiFetch(`/api/admin?resource=invites&token=${encodeURIComponent(inv.token)}`, { method: "DELETE" });
         setInviteMsg({ ok: true, text: `Nouvelle invitation envoyée à ${inv.email}.` });
         await loadServer();
       }
     } catch (_) { /* ignore */ }
   };
   const deleteInvite = async (inv) => {
-    await apiFetch(`/api/admin/invites?token=${encodeURIComponent(inv.token)}`, { method: "DELETE" });
+    await apiFetch(`/api/admin?resource=invites&token=${encodeURIComponent(inv.token)}`, { method: "DELETE" });
     await loadServer();
   };
   const refreshInviteStatuses = async () => {
@@ -216,12 +216,12 @@ export default function BackOffice({ onBack }) {
   const createAccount = async () => {
     const email = newUserEmail.trim();
     if (!email || newUserPwd.length < 8) { window.alert("Email requis et mot de passe d'au moins 8 caractères."); return; }
-    const res = await apiFetch("/api/admin/users", { method: "POST", body: JSON.stringify({ name: newUserName.trim(), email, password: newUserPwd, role: "Utilisateur" }) });
+    const res = await apiFetch("/api/admin?resource=users", { method: "POST", body: JSON.stringify({ name: newUserName.trim(), email, password: newUserPwd, role: "Utilisateur" }) });
     if (res.ok) { setNewUserName(""); setNewUserEmail(""); setNewUserPwd(""); await loadServer(); }
     else { const b = await res.json().catch(() => ({})); window.alert(b.error || "Échec de la création."); }
   };
-  const changeUserRole = async (u, role) => { await apiFetch("/api/admin/users", { method: "PATCH", body: JSON.stringify({ email: u.email, role }) }); await loadServer(); };
-  const deleteUser = async (u) => { if (!window.confirm(`Supprimer le compte « ${u.name} » ?`)) return; await apiFetch(`/api/admin/users?email=${encodeURIComponent(u.email)}`, { method: "DELETE" }); await loadServer(); };
+  const changeUserRole = async (u, role) => { await apiFetch("/api/admin?resource=users", { method: "PATCH", body: JSON.stringify({ email: u.email, role }) }); await loadServer(); };
+  const deleteUser = async (u) => { if (!window.confirm(`Supprimer le compte « ${u.name} » ?`)) return; await apiFetch(`/api/admin?resource=users&email=${encodeURIComponent(u.email)}`, { method: "DELETE" }); await loadServer(); };
 
   const all = (srvReports || []).map(e => ({ ...e, interactions: e.interactions ?? null }));
 
@@ -246,12 +246,12 @@ export default function BackOffice({ onBack }) {
     window.location.href = `${window.location.origin}${window.location.pathname}?s=${e.state}`;
   };
   const moveReportTo = async (e, name) => {
-    await apiFetch("/api/admin/reports", { method: "PATCH", body: JSON.stringify({ id: e.id, espace: name || "—" }) });
+    await apiFetch("/api/admin?resource=reports", { method: "PATCH", body: JSON.stringify({ id: e.id, espace: name || "—" }) });
     await loadServer();
   };
   const deleteReport = async (e) => {
     if (!window.confirm(`Supprimer le rapport « ${e.prospect} » ?`)) return;
-    await apiFetch(`/api/admin/reports?id=${encodeURIComponent(e.id)}`, { method: "DELETE" });
+    await apiFetch(`/api/admin?resource=reports&id=${encodeURIComponent(e.id)}`, { method: "DELETE" });
     await loadServer();
   };
 
