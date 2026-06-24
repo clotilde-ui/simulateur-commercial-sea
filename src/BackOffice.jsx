@@ -131,19 +131,22 @@ export default function BackOffice({ onBack }) {
     const email = uInviteEmail.trim();
     if (!email) return;
     const now = Date.now();
+    const token = genUserId() + genUserId();
+    const expiresAt = new Date(now + WEEK_MS).toISOString();
     const list = loadInvites();
-    list.push({ id: genUserId(), email, espace: uInviteSpace, role: uInviteRole, sentAt: new Date(now).toISOString(), expiresAt: new Date(now + WEEK_MS).toISOString() });
+    list.push({ id: genUserId(), email, espace: uInviteSpace, role: uInviteRole, token, sentAt: new Date(now).toISOString(), expiresAt });
     saveInvites(list);
     setUInviteEmail("");
     refresh();
     // Envoi réel de l'email via la fonction serverless Brevo (/api/invite).
+    const link = `${window.location.origin}${window.location.pathname}?invite=${token}`;
     setInviteSending(true);
     setInviteMsg({ ok: null, text: "Envoi en cours…" });
     try {
       const res = await fetch("/api/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, espace: uInviteSpace, role: uInviteRole, link: window.location.origin }),
+        body: JSON.stringify({ email, espace: uInviteSpace, role: uInviteRole, link, expiresAt }),
       });
       if (res.ok) {
         setInviteMsg({ ok: true, text: `Invitation envoyée à ${email}.` });
