@@ -63,7 +63,7 @@ export default async function handler(req, res) {
         <tr><td style="padding:32px">
           <h1 style="margin:0 0 16px;font-size:20px;color:#1a2e25">Vous êtes invité${espaceTxt}</h1>
           <p style="margin:0 0 10px;font-size:15px;line-height:1.6">Bonjour,</p>
-          <p style="margin:0 0 20px;font-size:15px;line-height:1.6">Vous avez été invité à rejoindre le simulateur commercial Sonate${espaceTxt}${roleTxt}.</p>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6">Vous avez été invité à rejoindre le Simulateur SEA/SMA Sonate${espaceTxt}${roleTxt}.</p>
           ${cta}
           ${expireTxt ? `<p style="margin:0;font-size:13px;color:#8a9e98">${expireTxt}</p>` : ""}
         </td></tr>
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
     </td></tr></table>
   </body></html>`;
 
-  const text = `Invitation Sonate\n\nVous êtes invité${espaceTxt}${roleTxt} sur le simulateur commercial Sonate.\n${url ? `\nAccéder : ${url}\n` : ""}${expireTxt ? `\n${expireTxt}\n` : ""}\n— L'équipe Sonate`;
+  const text = `Invitation Sonate\n\nVous êtes invité${espaceTxt}${roleTxt} sur le Simulateur SEA/SMA Sonate.\n${url ? `\nAccéder : ${url}\n` : ""}${expireTxt ? `\n${expireTxt}\n` : ""}\n— L'équipe Sonate`;
 
   try {
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {

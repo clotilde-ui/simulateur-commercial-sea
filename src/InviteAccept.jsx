@@ -59,7 +59,7 @@ export default function InviteAccept({ token }) {
     <div style={{ minHeight: "100vh", background: G, color: CREAM, fontFamily: "'Inter',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
       <div style={card}>
         <div style={{ fontWeight: 800, fontSize: 24, letterSpacing: "-0.02em", color: CREAM }}>Sonate</div>
-        <div style={{ fontSize: 10, letterSpacing: "0.18em", color: ORANGE, textTransform: "uppercase", marginTop: 2, marginBottom: 24 }}>Accompagnement SEA</div>
+        <div style={{ fontSize: 10, letterSpacing: "0.18em", color: ORANGE, textTransform: "uppercase", marginTop: 2, marginBottom: 24 }}>Simulateur SEA/SMA</div>
 
         {phase === "loading" && <div style={{ color: MUTED, fontSize: 14 }}>Vérification de l'invitation…</div>}
 
