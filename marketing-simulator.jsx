@@ -6,7 +6,7 @@ const CFG = {
   channels: {
     "google-ads": {
       label: "Google Ads",
-      color: "#FF6B3D",
+      color: "#e8571a",
       funnel: ["Impressions", "Clics", "Leads"],
       cpcLabel: "CPC (€)",
       ctrLabel: "CTR (%)",
@@ -23,7 +23,7 @@ const CFG = {
     },
     "meta-ads": {
       label: "Meta Ads",
-      color: "#FF6B3D",
+      color: "#e8571a",
       funnel: ["Impressions", "Clics", "Leads"],
       cpcLabel: "CPC (€)",
       ctrLabel: "CTR (%)",
@@ -40,7 +40,7 @@ const CFG = {
     },
     "linkedin-ads": {
       label: "LinkedIn Ads",
-      color: "#FF6B3D",
+      color: "#e8571a",
       funnel: ["Impressions", "Clics", "Leads"],
       cpcLabel: "CPC (€)",
       ctrLabel: "CTR (%)",
@@ -57,7 +57,7 @@ const CFG = {
     },
     "tiktok-ads": {
       label: "TikTok Ads",
-      color: "#FF6B3D",
+      color: "#e8571a",
       funnel: ["Impressions", "Clics", "Leads"],
       cpcLabel: "CPC (€)",
       ctrLabel: "CTR (%)",
@@ -192,6 +192,58 @@ function KCard({ label, sub, value, fmt, accent, highlight }) {
   );
 }
 
+// ─── Design tokens repris du simulateur SEO ──────────────────
+const G = "#1a2e25", G2 = "#142218", G3 = "#2d4a3e", G5 = "#233d30";
+const CREAM = "#f5f0e8", ORANGE = "#e8571a";
+const L_BORD = "#ddd5c8", L_MED = "#4a6a5a";
+
+const fmtN = (n) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(n));
+const fmtC = (n) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Math.round(n));
+const fmtP = (n, d = 1) => `${n.toFixed(d)}%`;
+const fmtLeads = (n) => (n >= 1 ? `${Math.round(n)}` : n > 0 ? n.toFixed(1) : "0");
+
+// ─── KPI Card (style SEO) ────────────────────────────────────
+function KPICard({ label, value, sub, accent = false }) {
+  return (
+    <div style={{ backgroundColor: G5, borderRadius: 10, padding: "14px 16px", border: `1px solid ${G3}`, flex: 1 }}>
+      <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label}</div>
+      <div style={{ color: accent ? ORANGE : CREAM, fontSize: 22, fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ color: "#5a7a6a", fontSize: 11, marginTop: 5 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ─── Entonnoir de conversion (trapèze orange, style SEO) ─────
+function ConversionFunnel({ stages, rates }) {
+  const N = stages.length;
+  const W = 400, BAND = 80, H = N * BAND, TIP = 60, SVG_W = 520;
+  const xl = (y) => (W - TIP) * y / (2 * H);
+  const xr = (y) => W - xl(y);
+  const COLORS_ON = ["#e8571a", "#d04c15", "#b84412", "#a63c0f", "#8a300a", "#6e2407"];
+  return (
+    <div style={{ display: "flex", justifyContent: "center", padding: "4px 0 8px" }}>
+      <svg viewBox={`0 0 ${SVG_W} ${H + 4}`} style={{ width: "100%", maxWidth: 560 }} aria-label="Entonnoir de conversion">
+        {stages.map((stage, i) => {
+          const y1 = i * BAND, y2 = (i + 1) * BAND, cy = (y1 + y2) / 2;
+          const pts = `${xl(y1)},${y1} ${xr(y1)},${y1} ${xr(y2)},${y2} ${xl(y2)},${y2}`;
+          const color = COLORS_ON[Math.min(i, COLORS_ON.length - 1)];
+          return (
+            <g key={i}>
+              <polygon points={pts} fill={color} />
+              {i > 0 && <line x1={xl(y1)} y1={y1} x2={xr(y1)} y2={y1} stroke="rgba(0,0,0,0.18)" strokeWidth={1} />}
+              <text x={W / 2} y={cy - 12} fill="rgba(255,255,255,0.8)" fontSize={12} textAnchor="middle" fontFamily="Inter, sans-serif">{stage.label}</text>
+              <text x={W / 2} y={cy + 14} fill="rgba(255,255,255,1)" fontSize={20} fontWeight="800" textAnchor="middle" fontFamily="Inter, sans-serif">{stage.value}</text>
+              {i < N - 1 && rates[i] && (
+                <text x={xr(y2) + 12} y={y2 + 5} fill={ORANGE} fontSize={11} fontWeight="600" textAnchor="start" fontFamily="Inter, sans-serif">{rates[i]}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 // ─── Learning curve — CPL evolution over the first months ────
 function LearningCurve({ data, color }) {
   const W = 560, H = 190;
@@ -290,6 +342,7 @@ export default function Simulator({ onOpenBackOffice }) {
   const [exporting, setExporting]   = useState(false);
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [trackingTick, setTrackingTick] = useState(0);
+  const [funnelPeriod, setFunnelPeriod] = useState("month");
 
   const ch     = CFG.channels[channel];
   const biz    = BUSINESS_TYPES[businessType];
@@ -471,7 +524,7 @@ export default function Simulator({ onOpenBackOffice }) {
     import("html2canvas").then(({ default: html2canvas }) =>
       html2canvas(contentRef.current, {
         scale: 2,
-        backgroundColor: "#0F332B",
+        backgroundColor: "#1a2e25",
         useCORS: true,
         logging: false,
         onclone: (_, el) => { el.style.paddingBottom = "32px"; },
@@ -565,7 +618,7 @@ export default function Simulator({ onOpenBackOffice }) {
     if (document.getElementById("sim-gf")) return;
     const el = document.createElement("link");
     el.id = "sim-gf"; el.rel = "stylesheet";
-    el.href = "https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap";
+    el.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
     document.head.appendChild(el);
   }, []);
 
@@ -573,163 +626,54 @@ export default function Simulator({ onOpenBackOffice }) {
   const cpmDisplay = `${cpm.toFixed(ch.cpmDigits ?? 1)} €`;
 
   const S = {
-    root: { minHeight: "100vh", background: "#0F332B", fontFamily: "'DM Sans',sans-serif", color: "#F6F1E8", position: "relative" },
-    grid: { backgroundImage: "linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px)", backgroundSize: "44px 44px", position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 },
-    wrap: { position: "relative", zIndex: 1 },
-    header: { borderBottom: "1px solid rgba(255,255,255,0.055)", padding: "14px 28px", background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 },
-    inner: { maxWidth: 1100, margin: "0 auto", padding: "24px 24px 64px" },
     label: { fontSize: 9, fontWeight: 600, letterSpacing: "0.16em", color: "rgba(255,255,255,0.22)", textTransform: "uppercase", marginBottom: 10 },
-    pill: (active, color) => ({ padding: "6px 13px", borderRadius: 20, fontSize: 11, cursor: "pointer", transition: "all 0.14s", background: active ? "rgba(255,255,255,0.1)" : "transparent", border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.07)"}`, color: active ? "#fff" : "rgba(255,255,255,0.38)" }),
+    pill: (active) => ({ padding: "6px 13px", borderRadius: 20, fontSize: 11, cursor: "pointer", transition: "all 0.14s", background: active ? "rgba(255,255,255,0.1)" : "transparent", border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.07)"}`, color: active ? "#fff" : "rgba(255,255,255,0.38)" }),
     chBtn: (active, color) => ({ padding: "7px 15px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "all 0.14s", background: active ? color : "rgba(255,255,255,0.04)", border: `1px solid ${active ? color : "rgba(255,255,255,0.07)"}`, color: active ? "#fff" : "rgba(255,255,255,0.42)" }),
-    panel: { background: "rgba(255,255,255,0.03)", borderRadius: 11, padding: "16px", border: "1px solid rgba(255,255,255,0.06)" },
     modeBtn: (active, color) => ({ flex: 1, padding: "8px 6px", borderRadius: 7, fontSize: 11.5, fontWeight: 500, cursor: "pointer", background: active ? color : "transparent", border: "none", color: active ? "#fff" : "rgba(255,255,255,0.36)", transition: "all 0.18s" }),
   };
 
+  const hInput = { background: "#f5f5f5", border: "1px solid #ddd", borderRadius: 6, padding: "8px 11px", color: "#1a3a2a", fontSize: 13, outline: "none", flex: 1, minWidth: 0, boxSizing: "border-box", fontFamily: "'Inter',sans-serif" };
+  const hOutBtn = { background: "transparent", border: `1px solid ${G3}`, borderRadius: 6, padding: "8px 14px", color: G2, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter',sans-serif" };
+
   return (
-    <div style={S.root}>
-      <div style={S.grid} />
-      <div style={S.wrap}>
-        {/* Header */}
-        <header style={S.header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div onClick={() => logoRef.current?.click()} style={{
-              width: 34, height: 34, borderRadius: 7, overflow: "hidden",
-              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer"
-            }}>
-              {logo
-                ? <img src={logo} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-              }
-            </div>
-            <input type="file" ref={logoRef} accept="image/*" onChange={handleLogo} style={{ display: "none" }} />
-            <div>
-              <input value={prospect} onChange={e => setProspect(e.target.value)} placeholder="Nom du prospect…"
-                style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8", width: 200, display: "block" }} />
-              <input value={website} onChange={e => setWebsite(e.target.value)}
-                onBlur={e => fetchLogoFromWebsite(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && fetchLogoFromWebsite(website)}
-                placeholder="Site internet…"
-                style={{ background: "transparent", border: "none", outline: "none", fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "rgba(255,255,255,0.38)", width: 200, display: "block", marginTop: 2 }} />
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", marginTop: 1 }}>
-                {CFG.sectors[sector]} · {ch.label}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {shareUrl && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", fontFamily: "monospace", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shareUrl}</span>}
-            <button onClick={handleShare} style={{
-              padding: "7px 16px", borderRadius: 7, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-              background: copied ? "rgba(255,107,61,0.1)" : "rgba(255,255,255,0.05)",
-              border: `1px solid ${copied ? "rgba(255,107,61,0.3)" : "rgba(255,255,255,0.09)"}`,
-              color: copied ? "#FF6B3D" : "rgba(255,255,255,0.55)", transition: "all 0.2s"
-            }}>
-              {copied ? "✓ Lien copié" : "Générer lien"}
-            </button>
-            <button onClick={() => setTrackingOpen(true)} style={{
-              padding: "7px 16px", borderRadius: 7, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)",
-              color: "rgba(255,255,255,0.55)", transition: "all 0.2s"
-            }}>
-              Suivi
-            </button>
-            {onOpenBackOffice && (
-              <button onClick={onOpenBackOffice} style={{
-                padding: "7px 16px", borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                background: "rgba(255,107,61,0.12)", border: "1px solid rgba(255,107,61,0.3)",
-                color: "#FF6B3D", transition: "all 0.2s"
-              }}>
-                Back-office
-              </button>
-            )}
-            <div ref={exportBtnRef} style={{ position: "relative" }}>
-              <button
-                onClick={() => setExportMenu(m => !m)}
-                disabled={exporting}
-                style={{
-                  padding: "7px 16px", borderRadius: 7, fontSize: 11.5, fontWeight: 500,
-                  cursor: exporting ? "default" : "pointer",
-                  background: exportMenu ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.05)",
-                  border: `1px solid ${exportMenu ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.09)"}`,
-                  color: exporting ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.55)",
-                  transition: "all 0.2s",
-                }}
-              >
-                {exporting ? "Export…" : "Exporter ↓"}
-              </button>
-              {exportMenu && (
-                <div style={{
-                  position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
-                  background: "#0F332B", border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: 8, overflow: "hidden", minWidth: 168,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-                }}>
-                  {[
-                    { label: "Exporter en PNG", action: handleExportPng },
-                    { label: "Exporter en PDF", action: handleExportPdf },
-                  ].map(({ label, action }) => (
-                    <button key={label} onClick={action} style={{
-                      display: "block", width: "100%", padding: "10px 16px",
-                      background: "transparent", border: "none", cursor: "pointer",
-                      fontSize: 12, color: "#F6F1E8", textAlign: "left",
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: G, color: CREAM, fontFamily: "'Inter',sans-serif" }}>
+      {/* ── HEADER ── */}
+      <header style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "0 20px", minHeight: 80, display: "flex", alignItems: "center", gap: 18, flexShrink: 0, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", width: 230, height: 60, flexShrink: 0 }}>
+          <div style={{ backgroundImage: "url(/logo-sonate.png)", backgroundRepeat: "no-repeat", backgroundSize: "248px auto", backgroundPosition: "-4px -10px", width: "100%", height: "100%" }} role="img" aria-label="Sonate" />
+          <span style={{ position: "absolute", top: 2, right: 0, fontSize: 8, fontWeight: 800, letterSpacing: "0.14em", color: ORANGE, lineHeight: 1 }}>Accompagnement SEA</span>
+        </div>
+        <div style={{ width: 1, height: 40, background: "#e0e0e0", flexShrink: 0 }} />
+        <div style={{ display: "flex", gap: 8, flex: 1, minWidth: 260 }}>
+          <input value={prospect} onChange={e => setProspect(e.target.value)} placeholder="Nom de l'entreprise" style={hInput} />
+          <input value={website} onChange={e => setWebsite(e.target.value)} onBlur={e => fetchLogoFromWebsite(e.target.value)} placeholder="URL du site" style={hInput} />
+          <select value={sector} onChange={e => setSector(e.target.value)} style={{ ...hInput, cursor: "pointer" }}>
+            {Object.entries(CFG.sectors).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button onClick={handleShare} style={{ ...hOutBtn, border: `1px solid ${copied ? "#4caf50" : G3}`, color: copied ? "#4caf50" : G2 }}>{copied ? "✓ Enregistré !" : "💾 Enregistrer"}</button>
+          {onOpenBackOffice && <button onClick={onOpenBackOffice} style={hOutBtn}>⚙️ Back-office</button>}
+          <button onClick={handleExportPdf} disabled={exporting} style={{ background: ORANGE, border: "none", borderRadius: 6, padding: "8px 16px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: exporting ? "default" : "pointer", whiteSpace: "nowrap", fontFamily: "'Inter',sans-serif", opacity: exporting ? 0.7 : 1 }}>↓ {exporting ? "Export…" : "Exporter PDF"}</button>
+        </div>
+      </header>
 
-        <div ref={contentRef} style={S.inner}>
-          {/* Personalisation hero */}
-          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            {logo && (
-              <img src={logo} alt="" style={{ height: 56, maxWidth: 120, borderRadius: 10, objectFit: "contain", flexShrink: 0 }} />
-            )}
-            <div>
-              {prospect ? (
-                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#F6F1E8" }}>
-                  Simulation personnalisée pour{" "}
-                  <span style={{ color: accent }}>{prospect}</span>
-                </div>
-              ) : (
-                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: "-0.02em", color: "rgba(255,255,255,0.2)" }}>
-                  Configurez votre simulation
-                </div>
-              )}
-            </div>
-          </div>
+      {/* ── BODY ── */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-          {/* Main 2-col layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "310px 1fr", gap: 0, alignItems: "stretch", borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+        {/* ── LEFT PANEL (cream) ── */}
+        <div style={{ width: 380, minWidth: 380, overflowY: "auto", borderRight: `1px solid ${L_BORD}`, padding: "16px 16px 28px", background: CREAM }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(0,0,0,0.35)", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.1)" }}>Paramètres</div>
 
-            {/* LEFT — Controls */}
-            <div style={{ background: "#F6F1E8", padding: "20px 18px", borderRight: "2px solid rgba(0,0,0,0.1)" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(0,0,0,0.35)", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.1)" }}>Paramètres</div>
-
-              {/* Selectors */}
+              {/* Canal */}
               <div style={{ marginBottom: 18 }}>
                 <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Canal d'acquisition</div>
-                <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 }}>
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {Object.entries(CFG.channels).map(([k, c]) => (
                     <button key={k} onClick={() => setChannel(k)} style={{
                       ...S.chBtn(channel === k, c.color),
                       ...(channel !== k ? { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" } : {}),
                     }}>{c.label}</button>
-                  ))}
-                </div>
-                <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Secteur d'activité</div>
-                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                  {Object.entries(CFG.sectors).map(([k, l]) => (
-                    <button key={k} onClick={() => setSector(k)} style={{
-                      ...S.pill(sector === k),
-                      ...(sector !== k ? { background: "transparent", border: "1px solid rgba(0,0,0,0.15)", color: "rgba(0,0,0,0.45)" } : { background: "rgba(0,0,0,0.1)", border: "1px solid rgba(0,0,0,0.2)", color: "rgba(0,0,0,0.8)" }),
-                    }}>{l}</button>
                   ))}
                 </div>
               </div>
@@ -968,95 +912,110 @@ export default function Simulator({ onOpenBackOffice }) {
 
             </div>
 
-            {/* RIGHT — Results */}
-            <div style={{ background: "rgba(255,255,255,0.04)", padding: "20px 22px" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>Résultats</div>
-              {/* Financial KPIs */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                <KCard label="CA potentiel" value={caPotentiel} fmt="eur"
-                  sub={`${clients.toLocaleString("fr-FR")} ${biz.finalSingular}${clients > 1 ? "s" : ""} × ${panierMoyen.toLocaleString("fr-FR")} €`} accent={accent} highlight />
-                <KCard label="ROI" value={roi} fmt="coef"
-                  sub={roi >= 1 ? "retour sur investissement" : "investissement non rentable"} accent={accent} highlight />
-              </div>
+        {/* ── RIGHT PANEL (dark) ── */}
+        <div ref={contentRef} style={{ flex: 1, overflowY: "auto", padding: "14px 18px 28px", background: G }}>
 
-              {/* 6 KPI cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14 }}>
-                <KCard label={mode === "budget" ? biz.generatedLabel : biz.objectiveLabel} value={leads} fmt="int"
-                  sub={`${biz.cplShort} · ${Math.round(cpl).toLocaleString("fr-FR")} €`} accent={accent} highlight />
-                <KCard label={mode === "budget" ? biz.contactCostLabel : "Budget requis"} value={mode === "budget" ? cpl : budgetOut} fmt="eur"
-                  sub={mode === "budget" ? biz.volumeNote : "investissement mensuel"} accent={accent} />
-                <KCard label={ch.funnel[1]} value={clicks} fmt="int"
-                  sub={`${ctr.toFixed(1)}% de taux`} accent={accent} />
-                <KCard label={ch.funnel[0]} value={impr} fmt="int"
-                  sub="volume estimé" accent={accent} />
-                <KCard label={`Taux ${ch.funnel[0].toLowerCase()} → ${biz.conversionStage.toLowerCase()}`} value={impr > 0 ? (leads / impr * 100) : 0} fmt="pct"
-                  sub={`${ch.funnel[0]} → ${biz.conversionStage}`} accent={accent} />
-                <KCard label={`Taux ${ch.funnel[1].toLowerCase()} → ${biz.conversionStage.toLowerCase()}`} value={clicks > 0 ? (leads / clicks * 100) : 0} fmt="pctS"
-                  sub={`${ch.funnel[1]} → ${biz.conversionStage}`} accent={accent} />
+          {/* Report header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: G2, borderRadius: 10, padding: "14px 20px", border: `1px solid ${G3}`, marginBottom: 14 }}>
+            <div>
+              <div style={{ color: "#5a7a6a", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
+                Simulation SEA · {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
               </div>
+              <div style={{ color: CREAM, fontSize: 20, fontWeight: 800, lineHeight: 1.1 }}>{prospect || "Nom de l'entreprise"}</div>
+              <div style={{ color: "#7a9e8e", fontSize: 12, marginTop: 4 }}>
+                {website}{website ? " · " : ""}{CFG.sectors[sector]} · {ch.label}
+              </div>
+            </div>
+            <div style={{ color: ORANGE, fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>SEA</div>
+          </div>
 
-              {/* Funnel + bar visualization */}
-              <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                <div style={{ padding: "22px 14px 22px 22px", borderRight: "1px solid rgba(255,255,255,0.05)" }}>
-                  <Funnel stages={stages} color={accent} />
+          {/* BLOC 1 — main KPIs */}
+          <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
+            <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `2px solid ${ORANGE}` }}>
+              <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>CA prévisionnel / an</div>
+              <div style={{ color: ORANGE, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{fmtC(annualCA)}</div>
+              <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>somme des 12 mois{seasonalityEnabled ? " (saisonnalité incluse)" : ""}</div>
+            </div>
+            <div style={{ flex: 1, display: "flex", gap: 10 }}>
+              <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${G3}` }}>
+                <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROI mensuel</div>
+                <div style={{ color: CREAM, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>×{roi.toFixed(1)}</div>
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>{roi >= 1 ? "investissement rentable" : "non rentable"}</div>
+              </div>
+              <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${G3}` }}>
+                <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROI annuel</div>
+                <div style={{ color: CREAM, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>×{annualRoi.toFixed(1)}</div>
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>sur 12 mois</div>
+              </div>
+            </div>
+          </div>
+
+          {/* BLOC 2 — secondary KPIs */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
+            <KPICard label={`${mode === "budget" ? biz.generatedLabel : biz.objectiveLabel} / mois`} value={fmtLeads(leads)} sub={`${biz.cplShort} ${fmtC(cpl)}`} />
+            <KPICard label={ch.funnel[1] + " / mois"} value={fmtN(clicks)} sub={`${ctr.toFixed(1)}% de CTR`} />
+            <KPICard label={ch.funnel[0] + " / mois"} value={fmtN(impr)} sub="volume estimé" />
+            <KPICard label="Budget mensuel" value={fmtC(spend)} accent />
+          </div>
+
+          {/* BLOC 3 — funnel */}
+          <div style={{ backgroundColor: G5, borderRadius: 10, padding: 16, marginBottom: 14, border: `1px solid ${G3}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: CREAM, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6 }}>
+              <span style={{ color: ORANGE, fontSize: 10 }}>◆</span> Entonnoir de conversion
+              <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                {Object.entries(BUSINESS_TYPES).map(([k, b]) => (
+                  <button key={k} onClick={() => { setBusinessType(k); setContactType(b.defaultContact); }} style={{
+                    fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 4, cursor: "pointer",
+                    border: `1px solid ${businessType === k ? ORANGE : G3}`, background: businessType === k ? `${ORANGE}22` : "transparent",
+                    color: businessType === k ? ORANGE : "#5a7a6a",
+                  }}>{b.label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+              {[["month", "/ Mois"], ["year", "/ An"]].map(([p, l]) => (
+                <button key={p} onClick={() => setFunnelPeriod(p)} style={{
+                  fontSize: 10, fontWeight: 700, padding: "3px 14px", borderRadius: 4, cursor: "pointer",
+                  border: `1px solid ${funnelPeriod === p ? "#3b82f6" : G3}`, background: funnelPeriod === p ? "#3b82f622" : "transparent",
+                  color: funnelPeriod === p ? "#3b82f6" : "#5a7a6a",
+                }}>{l}</button>
+              ))}
+            </div>
+            {(() => {
+              const mult = funnelPeriod === "year" ? 12 : 1;
+              const caLabel = funnelPeriod === "year" ? "CA / an" : "CA / mois";
+              const caVal = funnelPeriod === "year" ? annualCA : caPotentiel;
+              const fStages = [
+                { label: ch.funnel[0], value: fmtN(impr * mult) },
+                { label: ch.funnel[1], value: fmtN(clicks * mult) },
+                { label: biz.conversionStage, value: fmtLeads(leads * mult) },
+                ...(biz.hasClosing ? [{ label: biz.finalStage, value: fmtLeads(clients * mult) }] : []),
+                { label: caLabel, value: fmtC(caVal) },
+              ];
+              const fRates = [
+                impr > 0 ? `↓ ${fmtP(clicks / impr * 100)}` : "-",
+                clicks > 0 ? `↓ ${fmtP(leads / clicks * 100)}` : "-",
+                ...(biz.hasClosing ? [`↓ ${closing}%`] : []),
+                `× ${panierMoyen}€`,
+              ];
+              return <ConversionFunnel stages={fStages} rates={fRates} />;
+            })()}
+            {/* CPL/CPA par mois d'apprentissage */}
+            <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+              {learningTable.map(r => (
+                <div key={r.label} style={{ flex: 1, minWidth: 80, background: G2, borderRadius: 8, padding: "8px 12px", textAlign: "center" }}>
+                  <div style={{ color: "#5a7a6a", fontSize: 10, marginBottom: 2 }}>{biz.cplShort} {r.label}</div>
+                  <div style={{ color: ORANGE, fontWeight: 700, fontSize: 15 }}>{fmtC(r.cpl)}</div>
                 </div>
-                <div style={{ padding: "22px 22px" }}>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, marginBottom: 18, color: "#F6F1E8" }}>
-                    Entonnoir de conversion
-                  </div>
-                  {stages.map((s, i) => {
-                    const pct = stages[0].value > 0 ? Math.min(s.value / stages[0].value * 100, 100) : 0;
-                    const stepConv = i > 0 && stages[i - 1].value > 0
-                      ? ((s.value / stages[i - 1].value) * 100).toFixed(1) : null;
-                    return (
-                      <div key={i} style={{ marginBottom: 16 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, alignItems: "center" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)" }}>{s.label}</span>
-                            {stepConv && (
-                              <span style={{ fontSize: 9, background: accent + "1A", color: accent, padding: "1px 6px", borderRadius: 10 }}>
-                                ↓ {stepConv}%
-                              </span>
-                            )}
-                          </div>
-                          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: "#F6F1E8" }}>
-                            {Math.round(s.value).toLocaleString("fr-FR")}
-                          </span>
-                        </div>
-                        <div style={{ height: 3, background: "rgba(255,255,255,0.07)", borderRadius: 2 }}>
-                          <div style={{ height: "100%", borderRadius: 2, background: accent, opacity: 1 - i * 0.2, width: `${pct}%`, transition: "width 0.55s cubic-bezier(0.34,1.56,0.64,1)" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Summary strip */}
-                  {prospect && (
-                    <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: "0.04em", color: "rgba(255,255,255,0.35)", marginTop: 20, marginBottom: -8 }}>
-                      Récapitulatif pour <span style={{ color: accent }}>{prospect}</span>
-                    </div>
-                  )}
-                  <div style={{ marginTop: 20, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 0 }}>
-                    {[
-                      { l: "Budget", v: `${(mode === "budget" ? budget : budgetOut).toLocaleString("fr-FR")} €` },
-                      { l: biz.cplShort, v: `${Math.round(cpl).toLocaleString("fr-FR")} €` },
-                      { l: `Taux ${ch.funnel[0].toLowerCase()} → ${biz.conversionStage.toLowerCase()}`, v: `${impr > 0 ? (leads / impr * 100).toFixed(3) : "0.000"} %` },
-                    ].map((s, i) => (
-                      <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.27)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{s.l}</div>
-                        <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: accent }}>{s.v}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {shareUrl && (
-                    <div style={{ marginTop: 14, padding: "9px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 7, border: "1px solid rgba(255,255,255,0.07)" }}>
-                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", letterSpacing: "0.12em", marginBottom: 3 }}>LIEN DE PARTAGE</div>
-                      <div style={{ fontSize: 10, color: accent, fontFamily: "monospace", wordBreak: "break-all" }}>{shareUrl}</div>
-                    </div>
-                  )}
-                </div>
+              ))}
+            </div>
+            {shareUrl && (
+              <div style={{ marginTop: 14, padding: "9px 12px", background: G2, borderRadius: 7, border: `1px solid ${G3}` }}>
+                <div style={{ fontSize: 8, color: "#5a7a6a", letterSpacing: "0.12em", marginBottom: 3 }}>LIEN DE PARTAGE</div>
+                <div style={{ fontSize: 10, color: ORANGE, fontFamily: "monospace", wordBreak: "break-all" }}>{shareUrl}</div>
               </div>
+            )}
+          </div>
 
               {/* Courbe d'apprentissage — évolution du CPL sur les premiers mois */}
               <div style={{ marginTop: 14, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: "20px 22px" }}>
@@ -1149,8 +1108,6 @@ export default function Simulator({ onOpenBackOffice }) {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
         </div>
       </div>
 

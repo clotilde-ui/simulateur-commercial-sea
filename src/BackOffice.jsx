@@ -23,7 +23,6 @@ const NAV = [
   { key: "rapports", label: "Rapports", icon: "M9 3h6a2 2 0 012 2v0H7v0a2 2 0 012-2zM7 5h10v15a1 1 0 01-1 1H8a1 1 0 01-1-1V5z" },
   { key: "espaces", label: "Espaces clients", icon: "M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 10a3 3 0 100-6 3 3 0 000 6zM21 20v-2a4 4 0 00-3-3.87" },
   { key: "utilisateurs", label: "Utilisateurs", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zM6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" },
-  { key: "configuration", label: "Configuration", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 00-2-1.2l-.4-2.6H10l-.4 2.6a7 7 0 00-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 005 12a7 7 0 00.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 002 1.2l.4 2.6h4l.4-2.6a7 7 0 002-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0019 12z" },
 ];
 
 function Icon({ d }) {
