@@ -40,6 +40,7 @@ export default async function handler(req, res) {
     : "";
 
   const html = `<!doctype html><html><body style="margin:0;background:#f5f0e8;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#1e3328">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">Vous avez été invité à rejoindre le Simulateur SEA/SMA Sonate${espaceTxt}.</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e3ddd0">
         <tr><td style="background:#1a2e25;padding:24px 32px">
@@ -67,7 +68,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         sender: { email: senderEmail, name: senderName },
         to: [{ email }],
-        subject: `Invitation${espace ? ` · ${espace}` : ""} — Sonate`,
+        subject: "Vous êtes invité — Simulateur SEA/SMA",
         htmlContent: html,
         textContent: text,
       }),
