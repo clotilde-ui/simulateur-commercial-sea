@@ -112,6 +112,8 @@ export default function BackOffice({ onBack }) {
   const [uInviteEmail, setUInviteEmail] = useState("");
   const [uInviteSpace, setUInviteSpace] = useState("");
   const [uInviteRole, setUInviteRole] = useState("Lecteur");
+  const [inviteMsg, setInviteMsg] = useState(null);
+  const [inviteSending, setInviteSending] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPwd, setNewUserPwd] = useState("");
@@ -121,19 +123,63 @@ export default function BackOffice({ onBack }) {
   const invites = loadInvites();
   const activeEmails = new Set(usersFull.map(u => u.email));
   const inviteStatus = (inv) =>
-    activeEmails.has(inv.email) ? "activated"
+    (inv.activatedAt || activeEmails.has(inv.email)) ? "activated"
     : (new Date(inv.expiresAt).getTime() < Date.now() ? "expired" : "pending");
+
+  const [refreshingInvites, setRefreshingInvites] = useState(false);
+  const refreshInviteStatuses = async () => {
+    const list = loadInvites();
+    const pending = list.filter(i => i.token && !i.activatedAt);
+    if (!pending.length) { setInviteMsg({ ok: null, text: "Aucune invitation en attente à vérifier." }); return; }
+    setRefreshingInvites(true);
+    try {
+      await Promise.all(pending.map(async (i) => {
+        try {
+          const r = await fetch(`/api/invite-status?token=${encodeURIComponent(i.token)}`);
+          const d = await r.json().catch(() => ({}));
+          if (r.ok && d.status === "activated") i.activatedAt = d.activatedAt || new Date().toISOString();
+        } catch (_) { /* ignore */ }
+      }));
+      saveInvites(list);
+      refresh();
+    } finally {
+      setRefreshingInvites(false);
+    }
+  };
   const spacesOfUser = (email) => spaces.filter(s => (s.members || []).some(m => m.email === email));
 
-  const sendInvite = () => {
+  const sendInvite = async () => {
     const email = uInviteEmail.trim();
     if (!email) return;
     const now = Date.now();
+    const token = genUserId() + genUserId();
+    const expiresAt = new Date(now + WEEK_MS).toISOString();
     const list = loadInvites();
-    list.push({ id: genUserId(), email, espace: uInviteSpace, role: uInviteRole, sentAt: new Date(now).toISOString(), expiresAt: new Date(now + WEEK_MS).toISOString() });
+    list.push({ id: genUserId(), email, espace: uInviteSpace, role: uInviteRole, token, sentAt: new Date(now).toISOString(), expiresAt });
     saveInvites(list);
     setUInviteEmail("");
     refresh();
+    // Envoi réel de l'email via la fonction serverless Brevo (/api/invite).
+    const link = `${window.location.origin}${window.location.pathname}?invite=${token}`;
+    setInviteSending(true);
+    setInviteMsg({ ok: null, text: "Envoi en cours…" });
+    try {
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, espace: uInviteSpace, role: uInviteRole, link, expiresAt }),
+      });
+      if (res.ok) {
+        setInviteMsg({ ok: true, text: `Invitation envoyée à ${email}.` });
+      } else {
+        const b = await res.json().catch(() => ({}));
+        setInviteMsg({ ok: false, text: (b.error || `Échec de l'envoi (${res.status}).`) + " L'invitation reste enregistrée localement." });
+      }
+    } catch (_) {
+      setInviteMsg({ ok: false, text: "Endpoint d'envoi indisponible (l'email part une fois déployé sur Vercel avec la clé Brevo). L'invitation est enregistrée localement." });
+    } finally {
+      setInviteSending(false);
+    }
   };
   const regenInvite = (inv) => {
     const now = Date.now();
@@ -551,7 +597,12 @@ export default function BackOffice({ onBack }) {
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
-              <button onClick={sendInvite} style={{ padding: "11px 22px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", background: ACCENT, border: `1px solid ${ACCENT}`, color: "#fff", fontFamily: "'DM Sans',sans-serif" }}>+ Envoyer une invitation</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <button onClick={sendInvite} disabled={inviteSending} style={{ padding: "11px 22px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: inviteSending ? "default" : "pointer", background: ACCENT, border: `1px solid ${ACCENT}`, color: "#fff", fontFamily: "'DM Sans',sans-serif", opacity: inviteSending ? 0.7 : 1 }}>{inviteSending ? "Envoi…" : "+ Envoyer une invitation"}</button>
+                {inviteMsg && (
+                  <span style={{ fontSize: 12.5, color: inviteMsg.ok === true ? "#5fb98a" : inviteMsg.ok === false ? ACCENT : MUTED }}>{inviteMsg.text}</span>
+                )}
+              </div>
             </div>
 
             {/* Créer un compte */}
@@ -566,7 +617,13 @@ export default function BackOffice({ onBack }) {
             </div>
 
             {/* Invitations */}
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>Invitations</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>Invitations</div>
+              <button onClick={refreshInviteStatuses} disabled={refreshingInvites} style={{
+                padding: "5px 12px", borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: refreshingInvites ? "default" : "pointer",
+                background: "transparent", border: `1px solid ${BORDER}`, color: MUTED, fontFamily: "'DM Sans',sans-serif",
+              }}>{refreshingInvites ? "Vérification…" : "↻ Rafraîchir les statuts"}</button>
+            </div>
             {invites.length === 0 ? (
               <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, marginBottom: 30 }}>Aucune invitation.</div>
             ) : (
