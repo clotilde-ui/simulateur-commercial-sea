@@ -134,9 +134,12 @@ export const SECTOR_SALES_CYCLE = {
   ecom: 1,
 };
 
+// Support de conversion : applique un FACTEUR au taux de conversion calibré par
+// secteur, plutôt qu'une valeur absolue qui écraserait la spécificité sectorielle.
+// Le site internet sert de référence (×1) ; une landing dédiée convertit mieux.
 export const CONVERSION_SUPPORTS = {
-  landing: { label: "Landing Page", conversionRate: 3 },
-  site: { label: "Site internet", conversionRate: 2.5 },
+  landing: { label: "Landing Page", factor: 1.2 },
+  site: { label: "Site internet", factor: 1 },
 };
 
 // Type de business : adapte la terminologie et la logique de conversion.
@@ -201,8 +204,15 @@ export const CONTACT_TYPES = {
   appel: { label: "Appel téléphonique" },
 };
 
-export function getSupportConversionRate(support) {
-  return CONVERSION_SUPPORTS[support]?.conversionRate ?? null;
+export function getSupportFactor(support) {
+  return CONVERSION_SUPPORTS[support]?.factor ?? 1;
+}
+
+// Taux de conversion = taux sectoriel de référence × facteur du support choisi.
+export function getSupportConversionRate(channel, sector, support) {
+  const base = CHANNEL_SECTOR_DEFAULTS[channel]?.[sector]?.conversionRate;
+  if (base == null) return null;
+  return Math.round(base * getSupportFactor(support) * 10) / 10;
 }
 
 export function getDefaultValues(channel, sector) {

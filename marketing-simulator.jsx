@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { SECTORS, getDefaultValues, getSectorSalesCycle, CONVERSION_SUPPORTS, getSupportConversionRate, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
+import { SECTORS, getDefaultValues, getSectorSalesCycle, CONVERSION_SUPPORTS, getSupportFactor, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
 import { loadTracking, saveTracking, genLinkId, fmtDuration, fmtDate } from "./src/tracking";
 
 const CFG = {
@@ -374,9 +374,12 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   // flash of wrong metrics caused by the old CPC/CTR being used with the new channel.
   useLayoutEffect(() => {
     const d = getDefaultValues(channel, sector);
-    if (d) { setCpc(d.cpc); setCtr(d.ctr); setConv(d.conversionRate); setBudget(d.budget); }
+    // Taux de conversion sectoriel pondéré par le support actuellement choisi.
+    if (d) { setCpc(d.cpc); setCtr(d.ctr); setConv(Math.round(d.conversionRate * getSupportFactor(support) * 10) / 10); setBudget(d.budget); }
     setCpm(CFG.channels[channel]?.cpmDefault ?? 10);
     setCycleVente(getSectorSalesCycle(sector));
+    // `support` n'est volontairement pas dans les deps : changer de support ne
+    // doit pas réinitialiser budget/CPC ; le bouton support ajuste déjà `conv`.
   }, [channel, sector]);
 
   // Restore state from shared URL on first load
@@ -900,7 +903,11 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                   <div style={{ ...S.label, color: "rgba(0,0,0,0.45)", marginBottom: 7 }}>Support de conversion</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     {Object.entries(CONVERSION_SUPPORTS).map(([k, s]) => (
-                      <button key={k} onClick={() => { setSupport(k); setConv(s.conversionRate); }} style={{
+                      <button key={k} onClick={() => {
+                        setSupport(k);
+                        const base = getDefaultValues(channel, sector)?.conversionRate ?? conv;
+                        setConv(Math.round(base * s.factor * 10) / 10);
+                      }} style={{
                         flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer",
                         fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600,
                         transition: "all 0.15s",
