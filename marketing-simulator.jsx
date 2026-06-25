@@ -288,16 +288,22 @@ function LearningCurve({ data, color }) {
   );
 }
 
-// Réduction marginale du CPL mois après mois (apprentissage de l'algorithme) :
-//  M1 = CPL de base, M2 −10%, M3 −10% suppl., M4 et + −30% suppl. (maturité).
+// Réduction marginale du CPL mois après mois. La phase d'apprentissage
+// algorithmique elle-même dure ~2 à 6 semaines ; les gains des premiers mois
+// viennent surtout de l'optimisation continue (mots-clés/audiences/créas) et se
+// stabilisent à maturité. On retient un gain DURABLE prudent (~−25 % vs M1),
+// plutôt qu'une division par deux maintenue toute l'année (irréaliste).
 const LEARNING_STEPS = [
-  { label: "M1", mult: 1.0, delta: null },
-  { label: "M2", mult: 0.9, delta: -10 },
-  { label: "M3", mult: 0.8, delta: -10 },
-  { label: "M4", mult: 0.5, delta: -30 },
-  { label: "M5", mult: 0.5, delta: null },
-  { label: "M6", mult: 0.5, delta: null },
+  { label: "M1", mult: 1.0,  delta: null },
+  { label: "M2", mult: 0.92, delta: -8 },
+  { label: "M3", mult: 0.85, delta: -8 },
+  { label: "M4", mult: 0.78, delta: -8 },
+  { label: "M5", mult: 0.76, delta: -3 },
+  { label: "M6", mult: 0.75, delta: null },
 ];
+// Seuil de signal en deçà duquel l'algorithme manque de conversions pour
+// optimiser : ~30 conv/mois (recommandation Google Smart Bidding ; Meta ~50/sem).
+const MIN_SIGNAL_CONV = 30;
 
 // ─── Saisonnalité (logique portée du simulateur SEO) ─────────
 // Les mois cochés en "haute saison" voient leurs résultats pondérés par un
@@ -516,11 +522,14 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   // Courbe d'apprentissage : évolution du CPL/CPA sur les premiers mois.
   const learningData = LEARNING_STEPS.map(s => ({ ...s, cpl: cpl * s.mult }));
   const learningTable = [
-    { label: "Mois 1",     deltaLabel: `${biz.cplShort} de base`, isBase: true, cpl: cpl * 1.0 },
-    { label: "Mois 2",     deltaLabel: "−10%",                                   cpl: cpl * 0.9 },
-    { label: "Mois 3",     deltaLabel: "−10% suppl.",                            cpl: cpl * 0.8 },
-    { label: "Mois 4 et +", deltaLabel: "−30% suppl.", tag: "maturité",          cpl: cpl * 0.5 },
+    { label: "Mois 1",      deltaLabel: `${biz.cplShort} de base`, isBase: true, cpl: cpl * 1.0 },
+    { label: "Mois 2",      deltaLabel: "−8%",                                    cpl: cpl * 0.92 },
+    { label: "Mois 3",      deltaLabel: "−8% suppl.",                             cpl: cpl * 0.85 },
+    { label: "Mois 4 et +", deltaLabel: "≈ −25% vs M1", tag: "maturité",          cpl: cpl * 0.75 },
   ];
+  // Signal insuffisant : trop peu de conversions pour que l'algorithme optimise,
+  // auquel cas la baisse de CPL ci-dessus est peu probable.
+  const lowSignal = leads > 0 && leads < MIN_SIGNAL_CONV;
 
   // Projection sur 12 mois combinant DEUX effets, mois par mois :
   //  • Apprentissage : le CPL/CPA baisse les premiers mois (LEARNING_STEPS),
@@ -1230,9 +1239,18 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                 <div style={{ marginTop: 14, padding: "10px 12px", background: accent + "14", borderRadius: 8, border: `1px solid ${accent}33`, display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <span style={{ color: accent, fontSize: 12, lineHeight: 1.4 }}>ⓘ</span>
                   <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                    Les 3 premiers mois correspondent à la phase d'apprentissage de l'algorithme.
+                    La phase d'apprentissage algorithmique dure ~2 à 6 semaines. Les gains de {biz.cplShort} des premiers mois viennent surtout de l'optimisation continue (mots-clés, audiences, créas) et se stabilisent autour de −25 % à maturité.
                   </span>
                 </div>
+                {/* Garde-fou : signal insuffisant pour l'algorithme */}
+                {lowSignal && (
+                  <div style={{ marginTop: 10, padding: "10px 12px", background: "#a6402a22", borderRadius: 8, border: "1px solid #a6402a66", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <span style={{ color: "#e8843a", fontSize: 12, lineHeight: 1.4 }}>⚠</span>
+                    <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.5 }}>
+                      ≈ {fmtLeads(leads)} {biz.conversionStage.toLowerCase()}/mois, sous le seuil de ~{MIN_SIGNAL_CONV} conversions/mois requis pour que l'algorithme optimise correctement. En dessous, la baisse de {biz.cplShort} ci-dessus est incertaine : prévoir plus de budget ou élargir le ciblage.
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Projection sur 12 mois — pondérée par la saisonnalité */}
