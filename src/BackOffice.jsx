@@ -688,7 +688,7 @@ export default function BackOffice({ onBack }) {
                 <thead><tr>
                   <th style={th}>Nom</th><th style={th}>Email</th><th style={th}>Rôle</th><th style={th}>Espaces</th>
                   <th style={th}>1re cnx</th><th style={th}>Dernière cnx</th>
-                  <th style={{ ...th, textAlign: "right" }}>Cnx</th><th style={{ ...th, textAlign: "right" }}>Temps passé</th><th style={{ ...th, textAlign: "right" }}>Interactions</th>
+                  <th style={{ ...th, textAlign: "right" }}>Cnx</th><th style={{ ...th, textAlign: "right" }}>Temps passé</th>
                   <th style={{ ...th, textAlign: "right" }}></th>
                 </tr></thead>
                 <tbody>
@@ -713,7 +713,6 @@ export default function BackOffice({ onBack }) {
                         <td style={{ ...td, color: MUTED }}>{u.lastLogin ? fmtDateShort(u.lastLogin) : "-"}</td>
                         <td style={{ ...td, textAlign: "right" }}>{u.cnx || 0}</td>
                         <td style={{ ...td, textAlign: "right" }}>{u.temps ? fmtDuration(u.temps) : "-"}</td>
-                        <td style={{ ...td, textAlign: "right" }}>{u.interactions || 0}</td>
                         <td style={{ ...td, borderRadius: "0 10px 10px 0", textAlign: "right" }}>
                           <button onClick={() => deleteUser(u)} style={actionBtn("supprimer")}>Supprimer</button>
                         </td>
