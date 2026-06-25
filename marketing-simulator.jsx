@@ -327,6 +327,9 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   const [geoScope, setGeoScope] = useState("france");
   const [geoZone, setGeoZone]   = useState("");
   const [panierMoyen, setPanierMoyen] = useState(300);
+  const [revenueType, setRevenueType] = useState("ponctuel"); // "ponctuel" | "recurrent"
+  const [mrr, setMrr]                 = useState(50);  // revenu mensuel par client (récurrent)
+  const [lifetime, setLifetime]       = useState(24); // durée de vie client (mois)
   const [marge, setMarge]             = useState(70);
   const [closing, setClosing]         = useState(20);
   const [cycleVente, setCycleVente]   = useState(1);
@@ -405,6 +408,9 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
         if (d.geoScope === "france" || d.geoScope === "localisee") setGeoScope(d.geoScope);
         if (d.geoZone) setGeoZone(d.geoZone);
         if (d.panierMoyen > 0) setPanierMoyen(d.panierMoyen);
+        if (d.revenueType === "recurrent" || d.revenueType === "ponctuel") setRevenueType(d.revenueType);
+        if (d.mrr > 0) setMrr(d.mrr);
+        if (d.lifetime >= 1) setLifetime(d.lifetime);
         if (d.marge >= 0 && d.marge <= 100) setMarge(d.marge);
         if (d.closing > 0)     setClosing(d.closing);
         if (d.cycleVente >= 1 && d.cycleVente <= 12) setCycleVente(d.cycleVente);
@@ -492,7 +498,11 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   cpl = leads > 0 ? safeDiv(mode === "budget" ? budget : budgetOut, leads) : 0;
   // En e-commerce la conversion EST une vente : pas d'étape de closing distincte.
   const clients     = biz.hasClosing ? Math.round(leads * closing / 100) : leads;
-  const caPotentiel = clients * panierMoyen;
+  // Valeur d'un client : panier unique (revenu ponctuel) ou valeur vie client
+  //  (LTV = revenu mensuel × durée de vie) pour un revenu récurrent / abonnement.
+  const recurring   = revenueType === "recurrent";
+  const clientValue = recurring ? mrr * lifetime : panierMoyen;
+  const caPotentiel = clients * clientValue;
   const spend = mode === "budget" ? budget : budgetOut;
   // ROAS = chiffre d'affaires généré pour 1 € dépensé (CA / budget).
   // ROI net = profit réel rapporté au budget, une fois la marge produit déduite.
@@ -528,7 +538,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
     // objectif figé → le volume reste la cible, c'est le budget qui baisse (× lm).
     const mLeads   = mode === "budget" ? leads * coef / lm : leads * coef;
     const mClients = biz.hasClosing ? mLeads * closing / 100 : mLeads;
-    const mCA      = mClients * panierMoyen;
+    const mCA      = mClients * clientValue;
     const mSpend   = mode === "budget" ? spend * coef : spend * coef * lm;
     return {
       label: seasonalityEnabled ? MONTH_NAMES[calMonth] : `M${i + 1}`,
@@ -555,6 +565,20 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   const realizedCohorts = Math.max(1, 13 - cv); // nb de mois dont le CA tombe en année 1
   const caRealizedY1 = seasonalMonths.slice(0, realizedCohorts).reduce((s, m) => s + m.ca, 0);
   const cycleShiftsCA = biz.hasClosing && cv > 1; // pas de décalage en e-commerce (achat immédiat)
+
+  // Revenu récurrent : annualCA mesure la LTV cumulée des clients acquis sur
+  // l'année (valeur générée). Le CA réellement FACTURÉ en année 1 se limite aux
+  // mois d'abonnement effectivement courus dans la fenêtre de 12 mois — après le
+  // délai du cycle de vente et plafonné par la durée de vie client.
+  const billedY1 = recurring
+    ? mrr * seasonalMonths.reduce((s, m, i) => {
+        const startM = i + (cv - 1);                         // 1er mois facturé pour la cohorte i
+        const monthsBilled = Math.max(0, Math.min(lifetime, 12 - startM));
+        return s + m.clients * monthsBilled;
+      }, 0)
+    : caRealizedY1;
+  // Montre la nuance « généré vs encaissé année 1 » dès qu'elle est significative.
+  const showRealizedSplit = recurring ? billedY1 < annualCA - 0.5 : cycleShiftsCA;
 
   const stages = [
     { label: ch.funnel[0], value: impr },
@@ -623,7 +647,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, marge, closing, cycleVente, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, revenueType, mrr, lifetime, marge, closing, cycleVente, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, prospect, website }));
     const linkId = genLinkId();
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}&t=${linkId}`;
     // Référence le lien dans le suivi local pour pouvoir consulter ses statistiques.
@@ -937,22 +961,62 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                     labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                 )}
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(0,0,0,0.08)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: "rgba(0,0,0,0.45)" }}>Panier moyen (€)</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: accent }}>{panierMoyen.toLocaleString("fr-FR")} €</span>
+                  {/* Type de revenu : panier unique (ponctuel) ou abonnement (récurrent → LTV) */}
+                  <div style={{ ...S.label, color: "rgba(0,0,0,0.45)", marginBottom: 7 }}>Type de revenu</div>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                    {[["ponctuel", "Ponctuel"], ["recurrent", "Récurrent"]].map(([k, l]) => (
+                      <button key={k} onClick={() => setRevenueType(k)} style={{
+                        flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer",
+                        fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, transition: "all 0.15s",
+                        ...(revenueType === k
+                          ? { background: accent, border: `1px solid ${accent}`, color: "#fff" }
+                          : { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" }),
+                      }}>{l}</button>
+                    ))}
                   </div>
-                  <input type="range" min={1} max={10000} step={1} value={panierMoyen}
-                    onChange={e => setPanierMoyen(Number(e.target.value))}
-                    style={{ width: "100%", accentColor: accent }} />
-                  <input type="number" value={panierMoyen} min={1}
-                    onChange={e => setPanierMoyen(Math.max(1, Number(e.target.value)))}
-                    style={{ marginTop: 6, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "4px 8px", color: "#0F332B", fontSize: 12, width: "100%", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+
+                  {!recurring ? (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: "rgba(0,0,0,0.45)" }}>Panier moyen (€)</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: accent }}>{panierMoyen.toLocaleString("fr-FR")} €</span>
+                      </div>
+                      <input type="range" min={1} max={10000} step={1} value={panierMoyen}
+                        onChange={e => setPanierMoyen(Number(e.target.value))}
+                        style={{ width: "100%", accentColor: accent }} />
+                      <input type="number" value={panierMoyen} min={1}
+                        onChange={e => setPanierMoyen(Math.max(1, Number(e.target.value)))}
+                        style={{ marginTop: 6, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "4px 8px", color: "#0F332B", fontSize: 12, width: "100%", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: "rgba(0,0,0,0.45)" }}>Revenu mensuel / client (€)</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: accent }}>{mrr.toLocaleString("fr-FR")} €</span>
+                      </div>
+                      <input type="range" min={1} max={2000} step={1} value={mrr}
+                        onChange={e => setMrr(Number(e.target.value))}
+                        style={{ width: "100%", accentColor: accent }} />
+                      <input type="number" value={mrr} min={1}
+                        onChange={e => setMrr(Math.max(1, Number(e.target.value)))}
+                        style={{ marginTop: 6, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "4px 8px", color: "#0F332B", fontSize: 12, width: "100%", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+                      <div style={{ marginTop: 12 }}>
+                        <Slider label="Durée de vie client (mois)" value={lifetime} min={1} max={60}
+                          step={1} onChange={setLifetime} accent={accent} display={`${lifetime} mois`}
+                          labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: -4 }}>
+                        Valeur vie client (LTV) : <strong>{fmtC(mrr * lifetime)}</strong> ({mrr.toLocaleString("fr-FR")} € × {lifetime} mois)
+                      </div>
+                    </>
+                  )}
+
                   <div style={{ marginTop: 14 }}>
                     <Slider label="Marge brute (%)" value={marge} min={1} max={100}
                       step={1} onChange={setMarge} accent={accent} display={`${Math.round(marge)} %`}
                       labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                     <div style={{ fontSize: 10, color: "rgba(0,0,0,0.35)", marginTop: -4 }}>
-                      Part du panier qui reste après coût de revient — sert au calcul du ROI net.
+                      Part du {recurring ? "revenu" : "panier"} qui reste après coût de revient — sert au calcul du ROI net.
                     </div>
                   </div>
                 </div>
@@ -1035,22 +1099,26 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
           {/* BLOC 1 — main KPIs */}
           <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
             <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `2px solid ${ORANGE}` }}>
-              <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>CA généré / an</div>
+              <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{recurring ? "Valeur client générée / an" : "CA généré / an"}</div>
               <div style={{ color: ORANGE, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{fmtC(annualCA)}</div>
-              {cycleShiftsCA ? (
+              {showRealizedSplit ? (
                 <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>
-                  dont <span style={{ color: CREAM, fontWeight: 700 }}>{fmtC(caRealizedY1)}</span> encaissés en année 1
-                  <span style={{ display: "block", color: "#5a7a6a", marginTop: 2 }}>cycle de vente {cv} mois — le reste bascule en année 2</span>
+                  dont <span style={{ color: CREAM, fontWeight: 700 }}>{fmtC(billedY1)}</span> {recurring ? "facturés" : "encaissés"} en année 1
+                  <span style={{ display: "block", color: "#5a7a6a", marginTop: 2 }}>
+                    {recurring
+                      ? `LTV cumulée (${lifetime} mois de vie client) — le reste s'étale sur les années suivantes`
+                      : `cycle de vente ${cv} mois — le reste bascule en année 2`}
+                  </span>
                 </div>
               ) : (
-                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>somme des 12 mois{seasonalityEnabled ? " (saisonnalité incluse)" : ""}</div>
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>{recurring ? "LTV cumulée des clients acquis" : "somme des 12 mois"}{seasonalityEnabled ? " (saisonnalité incluse)" : ""}</div>
               )}
             </div>
             <div style={{ flex: 1, display: "flex", gap: 10 }}>
               <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${G3}` }}>
                 <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROAS</div>
                 <div style={{ color: CREAM, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>×{roas.toFixed(1)}</div>
-                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>CA pour 1 € investi</div>
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>{recurring ? "valeur vie / 1 € investi (LTV:CAC)" : "CA pour 1 € investi"}</div>
               </div>
               <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${roiPct >= 0 ? G3 : "#a6402a"}` }}>
                 <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROI net</div>
@@ -1106,7 +1174,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                 impr > 0 ? `↓ ${fmtP(clicks / impr * 100)}` : "-",
                 clicks > 0 ? `↓ ${fmtP(leads / clicks * 100)}` : "-",
                 ...(biz.hasClosing ? [`↓ ${closing}%`] : []),
-                `× ${panierMoyen}€`,
+                recurring ? `× ${fmtN(clientValue)}€ LTV` : `× ${panierMoyen}€`,
               ];
               return <ConversionFunnel stages={fStages} rates={fRates} />;
             })()}
@@ -1203,7 +1271,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                     { l: `${biz.conversionStage} / an`, v: Math.round(annualLeads).toLocaleString("fr-FR") },
                     ...(biz.hasClosing ? [{ l: `${biz.finalStage} / an`, v: Math.round(annualClients).toLocaleString("fr-FR") }] : []),
                     { l: "Budget 12 mois", v: `${Math.round(annualSpend).toLocaleString("fr-FR")} €` },
-                    { l: "CA cumulé 12 mois", v: `${Math.round(annualCA).toLocaleString("fr-FR")} €` },
+                    { l: recurring ? "Valeur générée 12 mois" : "CA cumulé 12 mois", v: `${Math.round(annualCA).toLocaleString("fr-FR")} €` },
                     { l: "ROAS 12 mois", v: `x${annualRoas.toFixed(2)}` },
                     { l: "ROI net 12 mois", v: `${annualRoiPct >= 0 ? "+" : ""}${Math.round(annualRoiPct)}%` },
                   ].map((s, i, arr) => (
