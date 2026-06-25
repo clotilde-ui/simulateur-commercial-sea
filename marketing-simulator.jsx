@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { SECTORS, getDefaultValues, getSectorSalesCycle, CONVERSION_SUPPORTS, getSupportFactor, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
+import { SECTORS, getDefaultValues, getSectorSalesCycle, getSectorMargin, CONVERSION_SUPPORTS, getSupportFactor, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
 import { loadTracking, saveTracking, genLinkId, fmtDuration, fmtDate } from "./src/tracking";
 
 const CFG = {
@@ -336,7 +336,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   const [revenueType, setRevenueType] = useState("ponctuel"); // "ponctuel" | "recurrent"
   const [mrr, setMrr]                 = useState(50);  // revenu mensuel par client (récurrent)
   const [lifetime, setLifetime]       = useState(24); // durée de vie client (mois)
-  const [marge, setMarge]             = useState(70);
+  const [marge, setMarge]             = useState(getSectorMargin("saas"));
   const [closing, setClosing]         = useState(20);
   const [cycleVente, setCycleVente]   = useState(1);
   const [seasonalityEnabled, setSeasonalityEnabled] = useState(false);
@@ -387,6 +387,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
     if (d) { setCpc(d.cpc); setCtr(d.ctr); setConv(Math.round(d.conversionRate * getSupportFactor(support) * 10) / 10); setBudget(d.budget); }
     setCpm(CFG.channels[channel]?.cpmDefault ?? 10);
     setCycleVente(getSectorSalesCycle(sector));
+    setMarge(getSectorMargin(sector));
     // `support` n'est volontairement pas dans les deps : changer de support ne
     // doit pas réinitialiser budget/CPC ; le bouton support ajuste déjà `conv`.
   }, [channel, sector]);
@@ -1025,7 +1026,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                       step={1} onChange={setMarge} accent={accent} display={`${Math.round(marge)} %`}
                       labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                     <div style={{ fontSize: 10, color: "rgba(0,0,0,0.35)", marginTop: -4 }}>
-                      Part du {recurring ? "revenu" : "panier"} qui reste après coût de revient — sert au calcul du ROI net.
+                      Part du {recurring ? "revenu" : "panier"} qui reste après coût de revient — pré-remplie selon le secteur, à ajuster au client. Sert au ROI net.
                     </div>
                   </div>
                 </div>

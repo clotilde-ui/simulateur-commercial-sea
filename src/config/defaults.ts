@@ -134,6 +134,33 @@ export const SECTOR_SALES_CYCLE = {
   ecom: 1,
 };
 
+// Marge brute typique par secteur (en %), servant à pré-remplir le curseur
+// "Marge brute" pour le calcul du ROI net. Ce sont des ordres de grandeur
+// (marge sur coût de revient) : élevés pour les services/logiciels (peu de COGS),
+// faibles pour les activités à fort contenu matières (BTP, énergie, négoce auto).
+// Toujours ajustable au cas par cas selon le client.
+export const SECTOR_MARGIN = {
+  saas: 80,
+  industrie: 35,
+  finance: 75,
+  assurance: 70,
+  immo: 65,
+  batiment: 30,
+  energie: 35,
+  artisanat: 45,
+  auto: 25,
+  sante: 65,
+  juridique: 80,
+  rh: 70,
+  conseil: 75,
+  formation: 70,
+  tourisme: 55,
+  restauration: 65,
+  beaute: 65,
+  mode: 50,
+  ecom: 45,
+};
+
 // Support de conversion : applique un FACTEUR au taux de conversion calibré par
 // secteur, plutôt qu'une valeur absolue qui écraserait la spécificité sectorielle.
 // Le site internet sert de référence (×1) ; une landing dédiée convertit mieux.
@@ -221,4 +248,8 @@ export function getDefaultValues(channel, sector) {
 
 export function getSectorSalesCycle(sector) {
   return SECTOR_SALES_CYCLE[sector] ?? 1;
+}
+
+export function getSectorMargin(sector) {
+  return SECTOR_MARGIN[sector] ?? 70;
 }
