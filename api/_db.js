@@ -15,15 +15,26 @@ function client() {
   return _client;
 }
 
+// Comptes promus automatiquement en rôle Admin à l'initialisation de la base.
+// Idempotent : ne fait rien si l'utilisateur n'existe pas encore (il sera promu
+// au prochain démarrage une fois le compte créé). Garantit un accès admin sans
+// manipuler la base à la main.
+const BOOTSTRAP_ADMINS = ["clotilde.mares@sonate.group"];
+
 let _ready = null;
 function ready() {
   if (!_ready) {
-    _ready = client().batch([
-      "CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, name TEXT, role TEXT, espace TEXT, password_hash TEXT, created_at TEXT)",
-      "CREATE TABLE IF NOT EXISTS invites (token TEXT PRIMARY KEY, email TEXT, espace TEXT, role TEXT, sent_at TEXT, expires_at TEXT, activated_at TEXT)",
-      "CREATE TABLE IF NOT EXISTS spaces (id TEXT PRIMARY KEY, name TEXT, created_at TEXT, role TEXT, members TEXT)",
-      "CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, label TEXT, website TEXT, espace TEXT, state TEXT, created_at TEXT, visits TEXT)",
-    ], "write");
+    _ready = (async () => {
+      await client().batch([
+        "CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, name TEXT, role TEXT, espace TEXT, password_hash TEXT, created_at TEXT)",
+        "CREATE TABLE IF NOT EXISTS invites (token TEXT PRIMARY KEY, email TEXT, espace TEXT, role TEXT, sent_at TEXT, expires_at TEXT, activated_at TEXT)",
+        "CREATE TABLE IF NOT EXISTS spaces (id TEXT PRIMARY KEY, name TEXT, created_at TEXT, role TEXT, members TEXT)",
+        "CREATE TABLE IF NOT EXISTS reports (id TEXT PRIMARY KEY, label TEXT, website TEXT, espace TEXT, state TEXT, created_at TEXT, visits TEXT)",
+      ], "write");
+      for (const email of BOOTSTRAP_ADMINS) {
+        await client().execute({ sql: "UPDATE users SET role='Admin' WHERE lower(email)=lower(?)", args: [email] });
+      }
+    })();
   }
   return _ready;
 }
