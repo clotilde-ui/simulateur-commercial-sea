@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     try {
       const u = await getUserRaw(email);
       if (u && verifyPassword(password, u.password_hash)) {
+        if (u.role === "Désactivé") return res.status(403).json({ error: "Ce compte est désactivé. Contactez un administrateur." });
         user = { email: u.email, name: u.name, role: u.role || "Lecteur" };
       }
     } catch (_) { /* base indisponible → identifiants refusés */ }

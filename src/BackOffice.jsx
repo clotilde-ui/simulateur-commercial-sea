@@ -5,7 +5,10 @@ import { SECTORS } from "./config/defaults";
 import Login from "./Login.jsx";
 
 const ROLES = ["Propriétaire", "Éditeur", "Lecteur"];
-const USER_ROLES = ["Admin", "Éditeur", "Lecteur"];
+const USER_ROLES = ["Admin", "Éditeur", "Lecteur"]; // rôles assignables (création / invitation)
+// États gérables sur un compte existant : on ajoute « Désactivé » (coupe l'accès
+// sans supprimer le compte ni ses données, qui restent visibles aux admins).
+const USER_ROLES_MANAGE = ["Admin", "Éditeur", "Lecteur", "Désactivé"];
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const decodeState = (st) => { try { return JSON.parse(atob(st)); } catch { return {}; } };
 
@@ -220,7 +223,11 @@ export default function BackOffice({ onBack }) {
     if (res.ok) { setNewUserName(""); setNewUserEmail(""); setNewUserPwd(""); await loadServer(); }
     else { const b = await res.json().catch(() => ({})); window.alert(b.error || "Échec de la création."); }
   };
-  const changeUserRole = async (u, role) => { await apiFetch("/api/admin?resource=users", { method: "PATCH", body: JSON.stringify({ email: u.email, role }) }); await loadServer(); };
+  const changeUserRole = async (u, role) => {
+    if (role === "Désactivé" && !window.confirm(`Désactiver le compte « ${u.name} » ? Il ne pourra plus se connecter, mais ses données restent visibles ici. Réversible à tout moment.`)) return;
+    await apiFetch("/api/admin?resource=users", { method: "PATCH", body: JSON.stringify({ email: u.email, role }) });
+    await loadServer();
+  };
   const deleteUser = async (u) => { if (!window.confirm(`Supprimer le compte « ${u.name} » ?`)) return; await apiFetch(`/api/admin?resource=users&email=${encodeURIComponent(u.email)}`, { method: "DELETE" }); await loadServer(); };
 
   const all = (srvReports || []).map(e => ({ ...e, interactions: e.interactions ?? null }));
@@ -688,17 +695,17 @@ export default function BackOffice({ onBack }) {
                   {usersFull.map(u => {
                     const us = spacesOfUser(u.email);
                     return (
-                      <tr key={u.email} style={{ background: CARD }}>
+                      <tr key={u.email} style={{ background: CARD, opacity: u.role === "Désactivé" ? 0.55 : 1 }}>
                         <td style={{ ...td, borderRadius: "10px 0 0 10px", fontWeight: 700, color: CREAM }}>{u.name}</td>
                         <td style={{ ...td, color: MUTED, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</td>
                         <td style={td}>
-                          <select value={u.role} onChange={e => changeUserRole(u, e.target.value)} title="Changer le rôle" style={{
+                          <select value={u.role} onChange={e => changeUserRole(u, e.target.value)} title="Changer le rôle ou désactiver le compte" style={{
                             fontSize: 11.5, fontWeight: 600, padding: "5px 9px", borderRadius: 7, cursor: "pointer", outline: "none", fontFamily: "'DM Sans',sans-serif",
-                            background: u.role === "Admin" ? "rgba(255,107,61,0.15)" : "rgba(255,255,255,0.06)",
-                            color: u.role === "Admin" ? ACCENT : "rgba(255,255,255,0.7)",
-                            border: `1px solid ${u.role === "Admin" ? "rgba(255,107,61,0.3)" : BORDER}`,
+                            background: u.role === "Admin" ? "rgba(255,107,61,0.15)" : u.role === "Désactivé" ? "rgba(220,80,60,0.14)" : "rgba(255,255,255,0.06)",
+                            color: u.role === "Admin" ? ACCENT : u.role === "Désactivé" ? "#e0705a" : "rgba(255,255,255,0.7)",
+                            border: `1px solid ${u.role === "Admin" ? "rgba(255,107,61,0.3)" : u.role === "Désactivé" ? "rgba(220,80,60,0.35)" : BORDER}`,
                           }}>
-                            {USER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                            {USER_ROLES_MANAGE.map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
                         </td>
                         <td style={{ ...td, color: "rgba(255,255,255,0.7)" }}>{us.length} {us.length > 0 ? <span title={us.map(s => s.name).join(", ")} style={{ color: MUTED }}>▾</span> : null}</td>
