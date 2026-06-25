@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { SECTORS, getDefaultValues, getSectorSalesCycle, CONVERSION_SUPPORTS, getSupportConversionRate, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
+import { SECTORS, getDefaultValues, getSectorSalesCycle, CONVERSION_SUPPORTS, getSupportFactor, BUSINESS_TYPES, CONTACT_TYPES } from "./src/config/defaults";
 import { loadTracking, saveTracking, genLinkId, fmtDuration, fmtDate } from "./src/tracking";
 
 const CFG = {
@@ -327,6 +327,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   const [geoScope, setGeoScope] = useState("france");
   const [geoZone, setGeoZone]   = useState("");
   const [panierMoyen, setPanierMoyen] = useState(300);
+  const [marge, setMarge]             = useState(70);
   const [closing, setClosing]         = useState(20);
   const [cycleVente, setCycleVente]   = useState(1);
   const [seasonalityEnabled, setSeasonalityEnabled] = useState(false);
@@ -373,9 +374,12 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   // flash of wrong metrics caused by the old CPC/CTR being used with the new channel.
   useLayoutEffect(() => {
     const d = getDefaultValues(channel, sector);
-    if (d) { setCpc(d.cpc); setCtr(d.ctr); setConv(d.conversionRate); setBudget(d.budget); }
+    // Taux de conversion sectoriel pondéré par le support actuellement choisi.
+    if (d) { setCpc(d.cpc); setCtr(d.ctr); setConv(Math.round(d.conversionRate * getSupportFactor(support) * 10) / 10); setBudget(d.budget); }
     setCpm(CFG.channels[channel]?.cpmDefault ?? 10);
     setCycleVente(getSectorSalesCycle(sector));
+    // `support` n'est volontairement pas dans les deps : changer de support ne
+    // doit pas réinitialiser budget/CPC ; le bouton support ajuste déjà `conv`.
   }, [channel, sector]);
 
   // Restore state from shared URL on first load
@@ -401,6 +405,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
         if (d.geoScope === "france" || d.geoScope === "localisee") setGeoScope(d.geoScope);
         if (d.geoZone) setGeoZone(d.geoZone);
         if (d.panierMoyen > 0) setPanierMoyen(d.panierMoyen);
+        if (d.marge >= 0 && d.marge <= 100) setMarge(d.marge);
         if (d.closing > 0)     setClosing(d.closing);
         if (d.cycleVente >= 1 && d.cycleVente <= 12) setCycleVente(d.cycleVente);
         if (typeof d.seasonalityEnabled === "boolean") setSeasonalityEnabled(d.seasonalityEnabled);
@@ -489,7 +494,14 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
   const clients     = biz.hasClosing ? Math.round(leads * closing / 100) : leads;
   const caPotentiel = clients * panierMoyen;
   const spend = mode === "budget" ? budget : budgetOut;
-  const roi = spend > 0 ? caPotentiel / spend : 0;
+  // ROAS = chiffre d'affaires généré pour 1 € dépensé (CA / budget).
+  // ROI net = profit réel rapporté au budget, une fois la marge produit déduite.
+  // Un ROAS de x1 n'est PAS rentable : il faut couvrir le coût de revient (1 − marge).
+  const roas   = spend > 0 ? caPotentiel / spend : 0;
+  const profit = caPotentiel * marge / 100 - spend;
+  const roiPct = spend > 0 ? (profit / spend) * 100 : 0;
+  // Seuil de rentabilité : ROAS minimal pour que la marge couvre la dépense.
+  const breakEvenRoas = marge > 0 ? 100 / marge : Infinity;
 
   // Courbe d'apprentissage : évolution du CPL/CPA sur les premiers mois.
   const learningData = LEARNING_STEPS.map(s => ({ ...s, cpl: cpl * s.mult }));
@@ -500,25 +512,49 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
     { label: "Mois 4 et +", deltaLabel: "−30% suppl.", tag: "maturité",          cpl: cpl * 0.5 },
   ];
 
-  // Saisonnalité : projection sur 12 mois, chaque mois pondéré par son coefficient.
+  // Projection sur 12 mois combinant DEUX effets, mois par mois :
+  //  • Apprentissage : le CPL/CPA baisse les premiers mois (LEARNING_STEPS),
+  //    puis se stabilise à maturité (×0,5 dès M4). À budget constant cela
+  //    génère plus de volume ; à objectif constant cela coûte moins cher.
+  //  • Saisonnalité : en haute saison on capte plus de volume MAIS on dépense
+  //    aussi davantage (le coefficient s'applique au volume ET au budget),
+  //    sinon le ROI serait artificiellement gonflé par des leads « gratuits ».
   const seasonalMonths = Array.from({ length: 12 }, (_, i) => {
     const calMonth = (startMonth + i) % 12;
     const high = seasonalityEnabled && highSeasonMonths[calMonth];
     const coef = high ? highSeasonMultiplier : 1;
+    const lm = LEARNING_STEPS[i]?.mult ?? LEARNING_STEPS[LEARNING_STEPS.length - 1].mult; // mult CPL du mois
+    // budget figé → le volume profite de la baisse de CPL (÷ lm) ;
+    // objectif figé → le volume reste la cible, c'est le budget qui baisse (× lm).
+    const mLeads   = mode === "budget" ? leads * coef / lm : leads * coef;
+    const mClients = biz.hasClosing ? mLeads * closing / 100 : mLeads;
+    const mCA      = mClients * panierMoyen;
+    const mSpend   = mode === "budget" ? spend * coef : spend * coef * lm;
     return {
       label: seasonalityEnabled ? MONTH_NAMES[calMonth] : `M${i + 1}`,
       high, coef,
-      leads: leads * coef,
-      clients: clients * coef,
-      ca: caPotentiel * coef,
+      leads: mLeads,
+      clients: mClients,
+      ca: mCA,
+      spend: mSpend,
     };
   });
   const annualLeads   = seasonalMonths.reduce((s, m) => s + m.leads, 0);
   const annualClients = seasonalMonths.reduce((s, m) => s + m.clients, 0);
   const annualCA      = seasonalMonths.reduce((s, m) => s + m.ca, 0);
-  const annualSpend   = spend * 12;
-  const annualRoi     = annualSpend > 0 ? annualCA / annualSpend : 0;
+  const annualSpend   = seasonalMonths.reduce((s, m) => s + m.spend, 0);
+  const annualRoas    = annualSpend > 0 ? annualCA / annualSpend : 0;
+  const annualRoiPct  = annualSpend > 0 ? (annualCA * marge / 100 - annualSpend) / annualSpend * 100 : 0;
   const maxMonthLeads = Math.max(...seasonalMonths.map(m => m.leads), 1);
+
+  // Cycle de vente : un lead du mois i se conclut ~ (cycleVente − 1) mois plus
+  // tard. Sur une fenêtre de 12 mois, les cohortes des derniers mois encaissent
+  // en année 2. Le CA « réalisé année 1 » exclut donc ces cohortes décalées,
+  // alors que le budget, lui, est bien dépensé sur les 12 mois.
+  const cv = Math.round(cycleVente);
+  const realizedCohorts = Math.max(1, 13 - cv); // nb de mois dont le CA tombe en année 1
+  const caRealizedY1 = seasonalMonths.slice(0, realizedCohorts).reduce((s, m) => s + m.ca, 0);
+  const cycleShiftsCA = biz.hasClosing && cv > 1; // pas de décalage en e-commerce (achat immédiat)
 
   const stages = [
     { label: ch.funnel[0], value: impr },
@@ -587,7 +623,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
 
   // ── Share ─────────────────────────────────────────────────
   const handleShare = async () => {
-    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, closing, cycleVente, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, prospect, website }));
+    const encoded = btoa(JSON.stringify({ channel, sector, mode, budget, tLeads, cpc, ctr, conv, billing, cpm, support, businessType, contactType, geoScope, geoZone, panierMoyen, marge, closing, cycleVente, seasonalityEnabled, startMonth, highSeasonMonths, highSeasonMultiplier, prospect, website }));
     const linkId = genLinkId();
     const url = `${window.location.origin}${window.location.pathname}?s=${encoded}&t=${linkId}`;
     // Référence le lien dans le suivi local pour pouvoir consulter ses statistiques.
@@ -792,7 +828,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                     display={`${cycleVente} mois`}
                     labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                   <div style={{ fontSize: 10, color: "rgba(0,0,0,0.35)", marginTop: -4 }}>
-                    Contextualise les projections dans le temps
+                    Décale l'encaissement : les leads des derniers mois se concluent en année 2
                   </div>
                 </div>
               )}
@@ -863,11 +899,25 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                     step={0.1} onChange={setCtr} accent={accent} display={`${ctr.toFixed(1)} %`}
                     labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
                 )}
+                {/* Cohérence des leviers : CPC, CTR et CPM sont liés
+                    (CPM = CPC × CTR × 10). On affiche la métrique implicite du
+                    mode non sélectionné pour éviter un trio incohérent. */}
+                {ch.showCtr && (
+                  <div style={{ fontSize: 10, color: "rgba(0,0,0,0.4)", marginTop: -4, marginBottom: 14 }}>
+                    {billing === "cpc"
+                      ? `≈ CPM ${(cpc * ctr * 10).toFixed(1)} € à ce CTR`
+                      : `≈ CPC ${ctr > 0 ? (cpm / (ctr * 10)).toFixed(2) : "—"} € à ce CTR`}
+                  </div>
+                )}
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ ...S.label, color: "rgba(0,0,0,0.45)", marginBottom: 7 }}>Support de conversion</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     {Object.entries(CONVERSION_SUPPORTS).map(([k, s]) => (
-                      <button key={k} onClick={() => { setSupport(k); setConv(s.conversionRate); }} style={{
+                      <button key={k} onClick={() => {
+                        setSupport(k);
+                        const base = getDefaultValues(channel, sector)?.conversionRate ?? conv;
+                        setConv(Math.round(base * s.factor * 10) / 10);
+                      }} style={{
                         flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer",
                         fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600,
                         transition: "all 0.15s",
@@ -897,6 +947,14 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                   <input type="number" value={panierMoyen} min={1}
                     onChange={e => setPanierMoyen(Math.max(1, Number(e.target.value)))}
                     style={{ marginTop: 6, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "4px 8px", color: "#0F332B", fontSize: 12, width: "100%", outline: "none", fontFamily: "'DM Sans',sans-serif" }} />
+                  <div style={{ marginTop: 14 }}>
+                    <Slider label="Marge brute (%)" value={marge} min={1} max={100}
+                      step={1} onChange={setMarge} accent={accent} display={`${Math.round(marge)} %`}
+                      labelColor="rgba(0,0,0,0.45)" trackBg="rgba(0,0,0,0.1)" />
+                    <div style={{ fontSize: 10, color: "rgba(0,0,0,0.35)", marginTop: -4 }}>
+                      Part du panier qui reste après coût de revient — sert au calcul du ROI net.
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -977,20 +1035,27 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
           {/* BLOC 1 — main KPIs */}
           <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
             <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `2px solid ${ORANGE}` }}>
-              <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>CA prévisionnel / an</div>
+              <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>CA généré / an</div>
               <div style={{ color: ORANGE, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{fmtC(annualCA)}</div>
-              <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>somme des 12 mois{seasonalityEnabled ? " (saisonnalité incluse)" : ""}</div>
+              {cycleShiftsCA ? (
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>
+                  dont <span style={{ color: CREAM, fontWeight: 700 }}>{fmtC(caRealizedY1)}</span> encaissés en année 1
+                  <span style={{ display: "block", color: "#5a7a6a", marginTop: 2 }}>cycle de vente {cv} mois — le reste bascule en année 2</span>
+                </div>
+              ) : (
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>somme des 12 mois{seasonalityEnabled ? " (saisonnalité incluse)" : ""}</div>
+              )}
             </div>
             <div style={{ flex: 1, display: "flex", gap: 10 }}>
               <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${G3}` }}>
-                <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROI mensuel</div>
-                <div style={{ color: CREAM, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>×{roi.toFixed(1)}</div>
-                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>{roi >= 1 ? "investissement rentable" : "non rentable"}</div>
+                <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROAS</div>
+                <div style={{ color: CREAM, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>×{roas.toFixed(1)}</div>
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>CA pour 1 € investi</div>
               </div>
-              <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${G3}` }}>
-                <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROI annuel</div>
-                <div style={{ color: CREAM, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>×{annualRoi.toFixed(1)}</div>
-                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>sur 12 mois</div>
+              <div style={{ flex: 1, backgroundColor: G5, borderRadius: 12, padding: "24px 22px", border: `1px solid ${roiPct >= 0 ? G3 : "#a6402a"}` }}>
+                <div style={{ color: "#7a9e8e", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ROI net</div>
+                <div style={{ color: roiPct >= 0 ? "#4caf50" : ORANGE, fontSize: 40, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{roiPct >= 0 ? "+" : ""}{Math.round(roiPct)}%</div>
+                <div style={{ color: "#5a7a6a", fontSize: 12, marginTop: 8 }}>après marge {Math.round(marge)}% · {roiPct >= 0 ? "rentable" : "non rentable"}</div>
               </div>
             </div>
           </div>
@@ -1110,8 +1175,8 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
                     {seasonalityEnabled
-                      ? `${biz.conversionStage} pondérés (×${highSeasonMultiplier.toFixed(1)} en haute saison)`
-                      : `Activez la saisonnalité pour pondérer les mois`}
+                      ? `Montée en charge + saisonnalité (×${highSeasonMultiplier.toFixed(1)} en haute saison)`
+                      : `Montée en charge incluse · activez la saisonnalité pour pondérer les mois`}
                   </div>
                 </div>
 
@@ -1137,8 +1202,10 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                   {[
                     { l: `${biz.conversionStage} / an`, v: Math.round(annualLeads).toLocaleString("fr-FR") },
                     ...(biz.hasClosing ? [{ l: `${biz.finalStage} / an`, v: Math.round(annualClients).toLocaleString("fr-FR") }] : []),
+                    { l: "Budget 12 mois", v: `${Math.round(annualSpend).toLocaleString("fr-FR")} €` },
                     { l: "CA cumulé 12 mois", v: `${Math.round(annualCA).toLocaleString("fr-FR")} €` },
-                    { l: "ROI 12 mois", v: `x${annualRoi.toFixed(2)}` },
+                    { l: "ROAS 12 mois", v: `x${annualRoas.toFixed(2)}` },
+                    { l: "ROI net 12 mois", v: `${annualRoiPct >= 0 ? "+" : ""}${Math.round(annualRoiPct)}%` },
                   ].map((s, i, arr) => (
                     <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
                       <div style={{ fontSize: 9, color: "rgba(255,255,255,0.27)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>{s.l}</div>
@@ -1149,7 +1216,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
 
                 {seasonalityEnabled && (
                   <div style={{ marginTop: 14, padding: "10px 12px", background: accent + "14", borderRadius: 8, border: `1px solid ${accent}33`, fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                    Démarrage en {MONTH_NAMES[startMonth]}. Les mois de haute saison sont pondérés ×{highSeasonMultiplier.toFixed(1)} ; les autres restent à leur volume de base.
+                    Démarrage en {MONTH_NAMES[startMonth]}. Volume et budget des mois de haute saison pondérés ×{highSeasonMultiplier.toFixed(1)} ; les premiers mois intègrent la montée en charge (CPL décroissant).
                   </div>
                 )}
               </div>
