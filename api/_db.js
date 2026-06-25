@@ -33,7 +33,7 @@ function ready() {
       ], "write");
       // Migrations additives : colonnes de suivi des connexions. SQLite n'a pas
       // de "ADD COLUMN IF NOT EXISTS" → on ignore l'erreur si déjà présente.
-      for (const col of ["first_login TEXT", "last_login TEXT", "login_count INTEGER"]) {
+      for (const col of ["first_login TEXT", "last_login TEXT", "login_count INTEGER", "time_spent INTEGER"]) {
         try { await client().execute(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* colonne déjà présente */ }
       }
       for (const email of BOOTSTRAP_ADMINS) {
@@ -61,9 +61,13 @@ export async function recordLogin(email, ts) {
     [ts, ts, email]
   );
 }
+// Cumule le temps passé (en secondes) par un utilisateur connecté.
+export async function recordTimeSpent(email, seconds) {
+  await ex("UPDATE users SET time_spent = COALESCE(time_spent,0) + ? WHERE email = ?", [Math.round(seconds), email]);
+}
 export async function listUsers() {
-  const r = await ex("SELECT name,email,role,espace,created_at,first_login,last_login,login_count FROM users ORDER BY created_at DESC");
-  return r.rows.map(x => ({ name: x.name, email: x.email, role: x.role, espace: x.espace || "", createdAt: x.created_at, firstLogin: x.first_login || null, lastLogin: x.last_login || null, cnx: x.login_count || 0 }));
+  const r = await ex("SELECT name,email,role,espace,created_at,first_login,last_login,login_count,time_spent FROM users ORDER BY created_at DESC");
+  return r.rows.map(x => ({ name: x.name, email: x.email, role: x.role, espace: x.espace || "", createdAt: x.created_at, firstLogin: x.first_login || null, lastLogin: x.last_login || null, cnx: x.login_count || 0, temps: x.time_spent || 0 }));
 }
 
 // ── Invites ──

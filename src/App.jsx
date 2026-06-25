@@ -44,6 +44,38 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // Suivi du temps passé par l'utilisateur connecté : battements réguliers qui
+  // ne comptent que le temps onglet visible. La durée est cumulée côté serveur.
+  useEffect(() => {
+    if (!needsAuth || !auth?.email) return;
+    let last = Date.now();
+    const beat = () => {
+      const sec = Math.round((Date.now() - last) / 1000);
+      last = Date.now();
+      if (sec <= 0) return;
+      fetch("/api/me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+        body: JSON.stringify({ duration: sec }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    const tick = () => { if (document.visibilityState === "visible") beat(); };
+    const iv = setInterval(tick, 30000);
+    const onVis = () => {
+      if (document.visibilityState === "hidden") beat(); // cumule le temps visible écoulé
+      else last = Date.now();                            // reprise : on ne compte pas le temps masqué
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", beat);
+    return () => {
+      clearInterval(iv);
+      beat();
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", beat);
+    };
+  }, [needsAuth, auth?.email]);
+
   // 1) Activation d'une invitation (destinataire sans compte).
   if (inviteToken) return <InviteAccept token={inviteToken} />;
 
