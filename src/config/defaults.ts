@@ -179,6 +179,7 @@ export const BUSINESS_TYPES = {
     hint: "serrurier, dépannage…",
     priorityContact: "Appel téléphonique",
     defaultContact: "appel",
+    contactOptions: ["appel", "formulaire"],
     conversionStage: "Appels",
     generatedLabel: "Appels générés",
     objectiveLabel: "Objectif appels",
@@ -195,6 +196,7 @@ export const BUSINESS_TYPES = {
     hint: "formulaire classique",
     priorityContact: "Formulaire / Lead",
     defaultContact: "formulaire",
+    contactOptions: ["formulaire", "appel"],
     conversionStage: "Leads",
     generatedLabel: "Leads générés",
     objectiveLabel: "Objectif leads",
@@ -210,7 +212,8 @@ export const BUSINESS_TYPES = {
     label: "E-commerce",
     hint: "logique panier",
     priorityContact: "Achat en ligne (panier)",
-    defaultContact: "formulaire",
+    defaultContact: "achat",
+    contactOptions: ["achat", "clickcollect", "appel"],
     conversionStage: "Commandes",
     generatedLabel: "Commandes générées",
     objectiveLabel: "Objectif commandes",
@@ -224,11 +227,14 @@ export const BUSINESS_TYPES = {
   },
 };
 
-// Type de contact : canal d'entrée du prospect. Pré-rempli selon le type de
-// business (cf. defaultContact ci-dessus) mais modifiable manuellement.
+// Type de contact : canal d'entrée du prospect / mode de conversion. Les options
+// proposées dépendent du type de business (cf. contactOptions ci-dessus), et le
+// défaut est pré-rempli (defaultContact). Modifiable manuellement.
 export const CONTACT_TYPES = {
   formulaire: { label: "Formulaire" },
   appel: { label: "Appel téléphonique" },
+  achat: { label: "Achat en ligne" },
+  clickcollect: { label: "Click & collect" },
 };
 
 export function getSupportFactor(support) {

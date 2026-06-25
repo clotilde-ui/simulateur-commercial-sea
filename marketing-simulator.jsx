@@ -819,7 +819,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
               <div style={{ marginBottom: 16 }}>
                 <div style={{ ...S.label, color: "rgba(0,0,0,0.4)" }}>Type de contact</div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {Object.entries(CONTACT_TYPES).map(([k, c]) => (
+                  {(biz.contactOptions ?? Object.keys(CONTACT_TYPES)).map((k) => (
                     <button key={k} onClick={() => setContactType(k)} style={{
                       flex: 1, padding: "8px 6px", borderRadius: 8, cursor: "pointer",
                       fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600,
@@ -827,7 +827,7 @@ export default function Simulator({ onOpenBackOffice, user, onLogout, consultati
                       ...(contactType === k
                         ? { background: accent, border: `1px solid ${accent}`, color: "#fff" }
                         : { background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.12)", color: "rgba(0,0,0,0.5)" }),
-                    }}>{c.label}</button>
+                    }}>{CONTACT_TYPES[k]?.label ?? k}</button>
                   ))}
                 </div>
               </div>
